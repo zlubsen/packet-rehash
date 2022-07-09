@@ -1,0 +1,10 @@
+[workspace]
+members = [
+    "packet-rehash-core",   # defines the basic traits and struct/enum models
+    "packet-rehash-files",  # defines a custom file format
+    "pcap-files",           # implements the .pcap and .pcapng file formats for parsing and writing
+    "packet-play",          # packet replay component
+    "packet-record",        # packet recording component
+    "play-gui",             # Replay desktop application (based on egui)
+    "play-cli",             # Replay cli application (based on tui)
+]
