@@ -2,8 +2,13 @@
 name = "play-gui"
 version = "0.1.0"
 edition = "2021"
+authors = ["Zeeger Lubsen <zeeger@lubsen.eu>"]
+description = """
+Desktop tool to replay .pcap files (and .pcapng in the future). Assumes captured packets were recorded as UDP over IP/Ethernet.
+"""
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 egui = "0.18.1"
+eframe = "0.18.0"
