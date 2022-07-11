@@ -1,13 +1,12 @@
 use std::fs::File;
 use std::io::{BufReader, Read};
-use log::trace;
 use nom::bytes::complete::take;
 use nom::combinator::peek;
 use nom::IResult;
 use nom::multi::many1;
 use nom::number::complete::{le_u32, u16, u32};
 use nom::number::Endianness;
-use crate::Error;
+use crate::{PcapError};
 
 #[derive(Debug)]
 pub struct Pcap {
@@ -51,7 +50,7 @@ pub struct PcapPacketRecord {
 }
 
 impl TryFrom<File> for Pcap {
-    type Error = Error;
+    type Error = PcapError;
 
     fn try_from(file: File) -> Result<Self, Self::Error> {
         let mut buf = Vec::<u8>::new();
@@ -61,19 +60,19 @@ impl TryFrom<File> for Pcap {
         match parse_pcap_file(&buf) {
             Ok((_input, pcap)) => { Ok(pcap) }
             Err(_err) => {
-                Err(Error::ParsePcapError) }
+                Err(PcapError::ParsePcapError) }
         }
     }
 }
 
 impl TryFrom<&[u8]> for Pcap {
-    type Error = Error;
+    type Error = PcapError;
 
     fn try_from(buf: &[u8]) -> Result<Self, Self::Error> {
         match parse_pcap_file(buf) {
             Ok((_input, pcap)) => { Ok(pcap) }
             Err(_err) => {
-                Err(Error::ParsePcapError) }
+                Err(PcapError::ParsePcapError) }
         }
     }
 }
@@ -126,8 +125,6 @@ fn pcap_packet_record(endianness: Endianness) -> impl Fn(&[u8]) -> IResult<&[u8]
         // let (input, _ip_header) = take(IP_HEADER_LENGTH)(input)?;
         // TODO also parse the UDP header if needed to know what the original ports and addresses were.
         // let (input, _udp_header) = take(UDP_HEADER_LENGTH)(input)?;
-        // trace!("captured packet length: {captured_packet_length}");
-        // trace!("original packet length: {original_packet_length}");
         let (input, packet_data) = take(captured_packet_length)(input)?;
 
         let packet_data = packet_data.to_vec();

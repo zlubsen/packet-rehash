@@ -10,5 +10,8 @@ Desktop tool to replay .pcap files (and .pcapng in the future). Assumes captured
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-egui = "0.18.1"
 eframe = "0.18.0"
+egui = "0.18.1"
+env_logger = "0.9.0"
+pcap-files = { path = "../pcap-files" }
+packet-play = { path = "../packet-play" }

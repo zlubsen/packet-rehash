@@ -1,0 +1,3 @@
+pub const ETHERNET_HEADER_LENGTH_BYTES : u16 = 13;
+pub const IP_HEADER_LENGTH_BYTES : u16 = 20;
+pub const UDP_HEADER_LENGTH_BYTES : u16 = 8;
