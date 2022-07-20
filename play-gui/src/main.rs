@@ -1,33 +1,16 @@
 mod gui;
 
 use std::env;
-use std::fs::File;
-use std::net::SocketAddr;
 use std::process::exit;
+use std::sync::mpsc;
 
 use clap::Parser;
 
-pub(crate) const ERROR_INCORRECT_FILE_PATH : i32 = 1;
-pub(crate) const ERROR_CREATE_PLAYER : i32 = 2;
-pub(crate) const ERROR_INIT_PLAYER_TIMEOUT : i32 = 3;
-pub(crate) const ERROR_INIT_PLAYER : i32 = 4;
-pub(crate) const ERROR_PARSE_FILE : i32 = 5;
+use log::error;
+use packet_play::{Player, PlayerOptions, Recording};
 
-#[derive(Parser, Debug)]
-#[clap(name = "packet-play")]
-#[clap(author, version, about,long_about = None)]
-pub(crate) struct PlayerCli {
-    file: String,
-    #[clap(parse(try_from_str))]
-    #[clap(short, long, default_value_t = SocketAddr::new(IpAddr::V4(Ipv4Addr::BROADCAST),DEFAULT_DEST_PORT))]
-    destination: SocketAddr,
-    #[clap(short = 's', long = "source", default_value_t = DEFAULT_SRC_PORT)]
-    source_port: u16,
-    #[clap(short, long, default_value_t = DEFAULT_TTL)]
-    ttl: u32,
-    #[clap(short, long)]
-    auto_play_disable: bool,
-}
+pub(crate) const ERROR_CANNOT_START : i32 = 1;
+pub(crate) const ERROR_RUNTIME : i32 = 2;
 
 fn main() {
     if env::var("RUST_LOG").is_err() {
@@ -35,23 +18,32 @@ fn main() {
     }
     env_logger::init();
 
-    let cli = Cli::parse();
-    let mode : Mode = cli.mode.parse::<Mode>().unwrap();
+    let options = PlayerOptions::parse();
 
-    let file_path = std::path::Path::new(cli.file.as_str());
-    if !file_path.is_file() || !file_path.exists() {
-        error!("Provided path {} is not a file or does not exist.", {cli.file});
-        exit(ERROR_INCORRECT_FILE_PATH);
-    };
-
-    let file = File::open(file_path).unwrap();
-    let recording = Pcap::try_from(file);
+    let recording = Recording::try_from(options.file.as_str());
 
     if let Ok(recording) = recording {
-        gui::run_gui(cli, recording);
+        let (cmd_sender, cmd_receiver) = mpsc::channel();
+        let (event_sender, event_receiver) = mpsc::channel();
+
+        // Spawn thread for the Player
+        let _player_handle = Player::builder()
+            .recording(recording)
+            .destination(options.destination)
+            .source_port(options.source_port)
+            .ttl(options.ttl)
+            .cmd_rx(cmd_receiver)
+            .event_tx(event_sender)
+            .build().expect("Player init error...");
+
+        // Start the gui
+        if let Err(error) = gui::run_gui(options, event_receiver, cmd_sender) {
+            error!("{:?}", error);
+            exit(ERROR_RUNTIME);
+        }
     } else {
         let error = recording.unwrap_err();
         error!("Cannot play recording, because: {:?}", error);
-        exit(ERROR_PARSE_FILE);
+        exit(ERROR_CANNOT_START);
     };
 }

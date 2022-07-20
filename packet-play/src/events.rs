@@ -35,15 +35,15 @@ impl Event {
 
 #[derive(Copy, Clone)]
 pub struct StateChange {
-    pub(crate) state: PlayerState,
+    pub state: PlayerState,
 }
 
 #[derive(Copy, Clone)]
 pub struct PositionChange {
-    pub(crate) position: usize,
-    pub(crate) max_position: usize,
-    pub(crate) time_position: Duration,
-    pub(crate) time_total: Duration,
+    pub position: usize,
+    pub max_position: usize,
+    pub time_position: Duration,
+    pub time_total: Duration,
 }
 
 impl Default for PositionChange {

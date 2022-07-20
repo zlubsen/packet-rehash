@@ -3,6 +3,7 @@ use std::io::{BufReader, Read};
 use nom::IResult;
 use crate::PcapError;
 
+#[derive(Debug)]
 pub struct PcapNG {
     pub placeholder: usize,
 }

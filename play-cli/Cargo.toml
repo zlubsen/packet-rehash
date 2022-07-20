@@ -5,11 +5,13 @@ edition = "2021"
 authors = ["Zeeger Lubsen <zeeger@lubsen.eu>"]
 description = """
 CLI tool to replay .pcap files (and .pcapng in the future). Assumes captured packets were recorded as UDP over IP/Ethernet.
+The tool uses the tui framework.
 """
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 clap =  { version = "3.2.8", features = ["derive"] }
-tui = "0.18.0"
 crossterm = "0.24.0"
+tui = "0.18.0"
+tui-logger = "0.8.0"

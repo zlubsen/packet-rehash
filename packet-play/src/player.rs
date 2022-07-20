@@ -63,7 +63,7 @@ impl Player {
             Recording::PcapNg(_) => {
                 let _ = self.event_tx.send(
                     Event::error(
-                        PlayerError::FileTypeNotSupported(String::from(".pcapng"))));
+                        PlayerError::PlayerInitError));
                 return;
             },
         };
