@@ -34,7 +34,7 @@ fn main() {
             .ttl(options.ttl)
             .cmd_rx(cmd_receiver)
             .event_tx(event_sender)
-            .build().expect("Player init error...");
+            .build().expect("Failed to initialise Player.");
 
         // Start the gui
         if let Err(error) = gui::run_gui(options, event_receiver, cmd_sender) {

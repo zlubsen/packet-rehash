@@ -31,7 +31,7 @@ pub(crate) fn run_gui(options: PlayerOptions, event_receiver: Receiver<Event>, c
                     Event::Error(err) => { return Err(err); }
                     Event::PlayerReady => {
                         break; }
-                    _ => { trace!("Unexpected to see this event here..."); }
+                    _ => { trace!("Unexpected to see this input here..."); }
                 }
             }
             Err(_err) => {

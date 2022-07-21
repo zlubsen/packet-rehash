@@ -4,7 +4,6 @@ pub enum Command {
     Pause,
     Rewind,
     Quit,
-    Unspecified,
 }
 
 impl Command {
@@ -24,8 +23,7 @@ impl From<usize> for Command {
             0 => { Command::Play }
             1 => { Command::Pause }
             2 => { Command::Rewind }
-            3 => { Command::Quit }
-            _ => { Command::Unspecified }
+            3 | _ => { Command::Quit }
         }
     }
 }

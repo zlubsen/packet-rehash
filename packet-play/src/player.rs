@@ -104,7 +104,6 @@ impl Player {
                     Some(PlayerState::Initial)
                 }
                 Ok(Command::Quit) => { Some(PlayerState::Quit) }
-                Ok(Command::Unspecified) => { None } // no-op
                 Err(TryRecvError::Empty) => { None } // no-op
                 Err(TryRecvError::Disconnected) => {
                     let _ = self.event_tx.send(Event::error(PlayerError::CommandChannelError)).unwrap();
