@@ -1,32 +1,33 @@
 mod tui;
 pub mod input;
+mod actions;
 
 use std::env;
-use std::fs::File;
 use std::process::exit;
 use std::sync::mpsc;
 
-use input::start_input_thread;
-
 use clap::Parser;
+use log::{error, trace};
 use packet_play::{Player, PlayerOptions, Recording};
+
+const ERROR_CANNOT_START : i32 = 1;
+const ERROR_RUNTIME : i32 = 2;
 
 fn main() {
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", "info");
     }
-
+env_logger::init();
     let options = PlayerOptions::parse();
 
     let recording = Recording::try_from(options.file.as_str());
 
     if let Ok(recording) = recording {
-        let (input_sender, input_receiver) = mpsc::channel();
         let (cmd_sender, cmd_receiver) = mpsc::channel();
         let (event_sender, event_receiver) = mpsc::channel();
 
         // Spawn thread for the Player
-        let _player_handle = Player::builder()
+        let player_handle = Player::builder()
             .recording(recording)
             .destination(options.destination)
             .source_port(options.source_port)
@@ -42,6 +43,8 @@ fn main() {
             error!("{:?}", error);
             exit(ERROR_RUNTIME);
         }
+
+        player_handle.join().expect("Could not join on the Player thread.");
     } else {
         let error = recording.unwrap_err();
         error!("Cannot play recording, because: {:?}", error);

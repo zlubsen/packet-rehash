@@ -56,7 +56,6 @@ impl Player {
         socket.set_broadcast(true).expect("Failed to set socket SO_BROADCAST option.");
         socket.set_ttl(self.ttl).expect("Failed to set socket TTL value");
 
-
         // TODO refactor 'return' to Result<> function return value
         let recording = match &self.recording {
             Recording::Pcap(pcap) => pcap,
