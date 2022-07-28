@@ -7,7 +7,7 @@ use std::process::exit;
 use std::sync::mpsc;
 
 use clap::Parser;
-use log::{error, trace};
+use log::error;
 use packet_play::{Player, PlayerOptions, Recording};
 
 const ERROR_CANNOT_START : i32 = 1;
@@ -17,7 +17,9 @@ fn main() {
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", "info");
     }
-env_logger::init();
+    tui_logger::init_logger(log::LevelFilter::Trace).unwrap();
+    tui_logger::set_default_level(log::LevelFilter::Trace);
+// env_logger::init();
     let options = PlayerOptions::parse();
 
     let recording = Recording::try_from(options.file.as_str());

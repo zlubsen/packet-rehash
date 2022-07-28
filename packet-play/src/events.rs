@@ -33,12 +33,12 @@ impl Event {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct StateChange {
     pub state: PlayerState,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct PositionChange {
     pub position: usize,
     pub max_position: usize,
