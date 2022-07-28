@@ -48,7 +48,6 @@ impl App {
             Action::CycleArea => { self.handle_cycle_area() }
         };
         if let Some(command) = command {
-            trace!("sending {command:?}");
             self.cmd_sender.send(command).expect("Failed to send command");
         }
     }
@@ -60,7 +59,6 @@ impl App {
 
     fn handle_left(&mut self) -> Option<Command> {
         self.selected_button = self.selected_button.saturating_sub(1);
-        trace!("left > {}", self.selected_button);
         None
     }
 
@@ -68,7 +66,6 @@ impl App {
         if self.selected_button < BUTTONS.len() - 1 {
              self.selected_button = self.selected_button + 1
         };
-        trace!("right > {}", self.selected_button);
         None
     }
 
