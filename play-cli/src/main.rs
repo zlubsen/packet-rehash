@@ -17,9 +17,9 @@ fn main() {
     if env::var("RUST_LOG").is_err() {
         env::set_var("RUST_LOG", "info");
     }
-    tui_logger::init_logger(log::LevelFilter::Trace).unwrap();
-    tui_logger::set_default_level(log::LevelFilter::Trace);
-// env_logger::init();
+    tui_logger::init_logger(log::LevelFilter::Info).unwrap();
+    tui_logger::set_default_level(log::LevelFilter::Info);
+
     let options = PlayerOptions::parse();
 
     let recording = Recording::try_from(options.file.as_str());

@@ -113,7 +113,6 @@ impl Player {
                 self.state = new_state;
             };
 
-            // TODO review need for terminal_synced, if we send the state before entering the main loop
             // act on current state
             match self.state {
                 PlayerState::Initial => {} // no-op

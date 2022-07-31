@@ -1,22 +1,21 @@
 use std::io::{stdout, Stdout};
+use std::path::Path;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError};
 
 use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use log::trace;
 use tui::backend::{Backend, CrosstermBackend};
 use tui::layout::{Alignment, Constraint, Direction, Layout};
 use tui::style::{Color, Style};
 use tui::{Frame, Terminal};
-use tui::layout::Alignment::Center;
-use tui::layout::Direction::Horizontal;
 use tui::text::{Span, Spans};
-use tui::widgets::{Block, Borders, Paragraph};
+use tui::widgets::{Block, Borders, Cell, Gauge, Paragraph, Row, Table};
 use tui_logger::TuiLoggerWidget;
 
 use packet_play::{Event, Command, PlayerOptions, PlayerError, PlayerState, PositionChange};
+use packet_rehash_core::utils::format::FormattedDuration;
 use crate::actions::Action;
 
 use crate::input::{Input, InputHandler};
@@ -48,7 +47,7 @@ impl App {
             Action::CycleArea => { self.handle_cycle_area() }
         };
         if let Some(command) = command {
-            self.cmd_sender.send(command).expect("Failed to send command");
+            self.cmd_sender.send(command).expect("Failed to send command, receiver (Player) disconnected.");
         }
     }
 
@@ -74,7 +73,7 @@ impl App {
             0 => Some(Command::Play),
             1 => Some(Command::Pause),
             2 => Some(Command::Rewind),
-            3 => Some(Command::Quit),
+            3 => { self.kill_signal = true; Some(Command::Quit) },
             _ => None,
         }
     }
@@ -129,7 +128,7 @@ fn gui_loop(mut app: App,
             mut terminal: Terminal<CrosstermBackend<Stdout>>)
     -> Terminal<CrosstermBackend<Stdout>> {
     while !app.kill_signal {
-        if let Err(_) = terminal.draw(|rect| draw(rect, &mut app)) {
+        if let Err(_) = terminal.draw(|frame| draw(frame, &mut app)) {
             app.kill_signal = true;
         }
 
@@ -171,70 +170,182 @@ fn gui_loop(mut app: App,
     terminal
 }
 
-fn draw<B>(rect: &mut Frame<B>,
-        app: &mut App)
+fn draw<B>(frame: &mut Frame<B>,
+           app: &mut App)
 where B: Backend {
-    let size = rect.size();
+    let size = frame.size();
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .margin(2)
+        .margin(0)
         .constraints(
             [
-                Constraint::Length(3),
+                Constraint::Length(4),
                 Constraint::Min(2),
+                Constraint::Length(3),
                 Constraint::Length(3),
                 Constraint::Length(10),
             ].as_ref(),
         )
         .split(size);
 
-    let header = Paragraph::new(vec![Spans::from(Span::raw("Packet Play")), Spans::from(Span::raw(app.options.file.as_str()))])
-        .style(Style::default().fg(Color::White))
-        .alignment(Alignment::Center)
-        .block(Block::default().borders(Borders::ALL));
-    // let filename = Paragraph::new(options.file.as_str())
-    //     .style(Style::default().fg(Color::White))
-    //     .alignment(Alignment::Center)
-    //     .block(Block::default().borders(Borders::ALL));
-    rect.render_widget(header, chunks[0]);
+    let header = draw_header(&app);
+    frame.render_widget(header, chunks[0]);
 
-    // let content_placeholder = Block::default().borders(Borders::ALL);
-    let content_placeholder = Paragraph::new(format!("{:?}",app.current_state));
-    rect.render_widget(content_placeholder, chunks[1]);
+    let info_chunks = Layout::default()
+        .direction(Direction::Horizontal)
+        .constraints([
+            Constraint::Min(10),
+            Constraint::Length(40),
+        ].as_ref())
+        .split(chunks[1]);
+
+    let recording_info = draw_info(&app);
+    frame.render_widget(recording_info, info_chunks[0]);
+
+    let help_info = draw_help();
+    frame.render_widget(help_info, info_chunks[1]);
+
+    let progress_bar = draw_progress(&app);
+    frame.render_widget(progress_bar, chunks[2]);
 
     let buttons_chunks = Layout::default()
-        .direction(Horizontal)
-        .margin(2)
+        .direction(Direction::Horizontal)
+        .margin(1)
         .constraints([
             Constraint::Percentage(25),
             Constraint::Percentage(25),
             Constraint::Percentage(25),
             Constraint::Percentage(25),
         ].as_ref(),)
-        .split(chunks[2]);
-    // for (i, button) in BUTTONS.iter().enumerate() {
-    //     let paragraph = Paragraph::new(*button).alignment(Center).style(
-    //         if app.selected_button == i {
-    //             Style::default().fg(Color::White)
-    //         } else {
-    //             Style::default().fg(Color::Blue).bg(Color::Gray)
-    //         }
-    //     );
-    //     rect.render_widget(paragraph, buttons_chunks[i]);
-    // }
+        .split(chunks[3]);
 
-    let buttons = BUTTONS.iter().enumerate().map(|(i, btn_text)| {
-        (i, Paragraph::new(*btn_text).alignment(Center).style(
+    let control_block = Block::default()
+        .title(
+            Span::styled("Controls", Style::default().fg(Color::White)))
+        .borders(Borders::ALL);
+    frame.render_widget(control_block, chunks[3]);
+    BUTTONS.iter().enumerate().map(|(i, btn_text)| {
+        (i, Paragraph::new(btn_text.clone()).alignment(Alignment::Center).style(
             if app.selected_button == i {
-                Style::default().fg(Color::White)
+                Style::default().fg(Color::Blue).bg(Color::White)
             } else {
-                Style::default().fg(Color::Blue).bg(Color::Gray)
+                Style::default().fg(Color::White)
             }
         ))
-    }).for_each(|(i, btn)| rect.render_widget(btn, buttons_chunks[i]));
+    }).for_each(|(i, btn)| frame.render_widget(btn, buttons_chunks[i]));
 
     let logs = draw_logs();
-    rect.render_widget(logs, chunks[3]);
+    frame.render_widget(logs, chunks[4]);
+}
+
+fn draw_header(app: &App) -> Paragraph {
+    Paragraph::new(
+        vec![
+            Spans::from(Span::styled("Packet Play", Style::default().fg(Color::White))),
+            Spans::from(Span::from(app.options.file.as_str()))
+        ])
+        .style(Style::default().fg(Color::White))
+        .alignment(Alignment::Center)
+        .block(Block::default().borders(Borders::ALL))
+}
+
+fn draw_info(app: &App) -> Table {
+    let file_name = if let Some(os_str) = Path::new(&app.options.file).file_name() {
+        if let Some(name) = os_str.to_str() {
+            name
+        } else { "<incorrect OsStr>" }
+    } else { "<incorrect path>" };
+    let info_key_style = Style::default().fg(Color::Gray);
+    let info_value_style = Style::default().fg(Color::White);
+    let recording_rows = vec![
+        Row::new(vec![
+            Cell::from(Span::styled("File:", info_key_style)),
+            Cell::from(Span::styled(file_name, info_value_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled("Destination:", info_key_style)),
+            Cell::from(Span::styled(app.options.destination.to_string(), info_value_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled("Source port:", info_key_style)),
+            Cell::from(Span::styled(app.options.source_port.to_string(), info_value_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled("TTL:", info_key_style)),
+            Cell::from(Span::styled(app.options.ttl.to_string(), info_value_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled("Auto play:", info_key_style)),
+            Cell::from(Span::styled((!app.options.auto_play_disable).to_string(), info_value_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled("", info_key_style)),
+            Cell::from(Span::styled("", info_value_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled("State:", info_key_style)),
+            Cell::from(Span::styled(app.current_state.to_string(), info_value_style)),
+        ]),
+        Row::new(vec![
+            Cell::from(Span::styled("Packets:", info_key_style)),
+            Cell::from(Span::styled(format!("{} / {}",app.current_position.position, app.current_position.max_position), info_value_style)),
+        ]),
+    ];
+
+    Table::new(recording_rows)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Player status"),
+        )
+        .widths(&[Constraint::Length(15), Constraint::Min(20)])
+        .column_spacing(1)
+}
+
+fn draw_help() -> Table<'static> {
+    let help_key_style = Style::default().fg(Color::LightCyan);
+    let help_value_style = Style::default().fg(Color::Gray);
+
+    let mut help_rows = vec![];
+    for action in Action::iterator() {
+        let mut first = true;
+        for key in action.key_mapping() {
+            let help = if first {
+                first = false;
+                action.to_string()
+            } else {
+                String::from("")
+            };
+            let help_item = Row::new(vec![
+                Cell::from(Span::styled(help, help_value_style)),
+                Cell::from(Span::styled(key.to_string(), help_key_style)),
+            ]);
+            help_rows.push(help_item);
+        }
+    }
+
+    Table::new(help_rows)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title("Help"),
+        )
+        .widths(&[Constraint::Length(20), Constraint::Min(20)])
+        .column_spacing(1)
+}
+
+fn draw_progress(app: &App) -> Gauge {
+    let progress_percent = (app.current_position.time_position.as_secs() * 100)
+        .checked_div(app.current_position.time_total.as_secs()).unwrap_or(0);
+
+    Gauge::default()
+        .block(Block::default().borders(Borders::ALL))
+        .gauge_style(Style::default().fg(Color::Blue))
+        .label(
+            format!("{progress_percent}% ({} / {})",
+                    FormattedDuration::new(app.current_position.time_position),
+                    FormattedDuration::new(app.current_position.time_total)))
+        .percent(progress_percent as u16)
 }
 
 fn draw_logs<'a>() -> TuiLoggerWidget<'a> {
@@ -246,7 +357,7 @@ fn draw_logs<'a>() -> TuiLoggerWidget<'a> {
         .style_info(Style::default().fg(Color::Blue))
         .block(
             Block::default()
-                .title("Messages")
+                .title(Span::styled("Messages", Style::default().fg(Color::White)))
                 .border_style(Style::default().fg(Color::White).bg(Color::Black))
                 .borders(Borders::ALL),
         )
