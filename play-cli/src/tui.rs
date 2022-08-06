@@ -133,20 +133,16 @@ fn gui_loop(mut app: App,
         }
 
         match app.event_receiver.try_recv() {
-            Ok(event) => {
-                match event {
-                    Event::Error(_) => {}
-                    Event::PlayerReady => {}
-                    Event::PlayerStateChanged(new_state) => {
-                        app.current_state = new_state.state;
-                    }
-                    Event::PlayerPositionChanged(new_position) => {
-                        app.current_position = new_position;
-                    }
-                    Event::QuitCommanded => {
-                        app.kill_signal = true;
-                    }
-                }
+            Ok(Event::Error(_)) => {}
+            Ok(Event::PlayerReady) => {}
+            Ok(Event::PlayerStateChanged(new_state)) => {
+                app.current_state = new_state.state;
+            }
+            Ok(Event::PlayerPositionChanged(new_position)) => {
+                app.current_position = new_position;
+            }
+            Ok(Event::QuitCommanded) => {
+                app.kill_signal = true;
             }
             Err(e) => {
                 match e {

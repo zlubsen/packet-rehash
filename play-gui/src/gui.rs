@@ -9,20 +9,6 @@ use packet_play::{PlayerError, PlayerState, PLAYER_STARTUP_TIMEOUT_MS};
 use packet_rehash_core::utils::format::FormattedDuration;
 
 pub(crate) fn run_gui(options: PlayerOptions, event_receiver: Receiver<Event>, cmd_sender: Sender<Command>) -> Result<(), PlayerError> {
-    // // TODO move channel, player creation except gui to main.
-    // let (cmd_sender, cmd_receiver) = mpsc::channel();
-    // let (event_sender, event_receiver) = mpsc::channel();
-    //
-    // // Spawn thread for the Player
-    // let _player_handle = Player::builder()
-    //     .recording(recording)
-    //     .destination(options.destination)
-    //     .source_port(options.source_port)
-    //     .ttl(options.ttl)
-    //     .cmd_rx(cmd_receiver)
-    //     .event_tx(event_sender)
-    //     .build()?;
-
     // Wait for Player to be initialised
     loop {
         match event_receiver.recv_timeout(Duration::from_secs(PLAYER_STARTUP_TIMEOUT_MS)) {

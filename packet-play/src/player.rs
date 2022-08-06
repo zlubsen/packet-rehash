@@ -85,8 +85,8 @@ impl Player {
         loop {
             // receive any command and update state
             if let Some(new_state) = match self.cmd_rx.try_recv() {
-                Ok(Command::Play) => { if self.state == PlayerState::Initial {
-                }
+                Ok(Command::Play) => {
+                    if self.state == PlayerState::Initial {}
                     Some(PlayerState::Playing)
                 }
                 Ok(Command::Pause) => {

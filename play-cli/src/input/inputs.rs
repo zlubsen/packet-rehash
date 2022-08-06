@@ -15,7 +15,7 @@ impl Default for InputConfig {
     fn default() -> Self {
         Self {
             exit_key: Key::Ctrl('c'),
-            tick_rate: Duration::from_millis(250),
+            tick_rate: Duration::from_millis(100),
         }
     }
 }
@@ -59,12 +59,12 @@ impl InputHandler {
 
                         input_tx.send(Input::Input(key)).unwrap();
                     }
-                }
-
-                // send tick, and the handler should quit when the input channel closes due to the receiver shutting down
-                let should_quit = input_tx.send(Input::Tick).map_or_else(|_| true, |()| false);
-                if should_quit {
-                    break;
+                } else {
+                    // send tick, and the handler should quit when the input channel closes due to the receiver shutting down
+                    let should_quit = input_tx.send(Input::Tick).map_or_else(|_| true, |()| false);
+                    if should_quit {
+                        break;
+                    }
                 }
             }
         });
