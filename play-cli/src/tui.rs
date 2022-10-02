@@ -1,6 +1,6 @@
 use std::io::{stdout, Stdout};
 use std::path::Path;
-use std::sync::mpsc::{Receiver, Sender, TryRecvError};
+use std::sync::mpsc::{Receiver, Sender};
 
 use crossterm::{
     execute,
@@ -128,27 +128,25 @@ fn gui_loop(mut app: App,
             mut terminal: Terminal<CrosstermBackend<Stdout>>)
     -> Terminal<CrosstermBackend<Stdout>> {
     while !app.kill_signal {
-        match app.event_receiver.try_recv() {
-            Ok(Event::Error(_)) => {}
-            Ok(Event::PlayerReady) => {}
-            Ok(Event::PlayerStateChanged(new_state)) => {
-                app.current_state = new_state.state;
-            }
-            Ok(Event::PlayerPositionChanged(new_position)) => {
-                app.current_position = new_position;
-            }
-            Ok(Event::QuitCommanded) => {
-                app.kill_signal = true;
-            }
-            Err(e) => {
-                match e {
-                    TryRecvError::Empty => {}
-                    TryRecvError::Disconnected => { app.kill_signal = true; }
+        // Read all events currently in the event channel
+        for event in app.event_receiver.try_iter() {
+            match event {
+                Event::Error(_) => {}
+                Event::PlayerReady => {}
+                Event::PlayerStateChanged(new_state) => {
+                    app.current_state = new_state.state;
+                }
+                Event::PlayerPositionChanged(new_position) => {
+                    app.current_position = new_position;
+                }
+                Event::QuitCommanded => {
+                    app.kill_signal = true;
                 }
             }
         }
 
-        if let Ok(input) = app.input_handler.try_next() { // Blocks, continues on key input or tick
+        // Blocks to limit draw rate, continues on key input or tick
+        if let Ok(input) = app.input_handler.next() {
             match input {
                 Input::Input(key) => {
                     if let Some(action) = Action::from_key(&key) {

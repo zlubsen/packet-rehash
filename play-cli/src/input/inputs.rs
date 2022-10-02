@@ -2,7 +2,7 @@ use crate::input::Key;
 use crossterm::event;
 use std::{sync::mpsc, thread, time::Duration};
 
-const TICK_RATE: u64 = 250;
+const TICK_RATE: u64 = 200;
 
 #[derive(Debug, Clone, Copy)]
 /// Configuration for event handling.
