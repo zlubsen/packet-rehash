@@ -2,6 +2,8 @@ use crate::input::Key;
 use crossterm::event;
 use std::{sync::mpsc, thread, time::Duration};
 
+const TICK_RATE: u64 = 250;
+
 #[derive(Debug, Clone, Copy)]
 /// Configuration for event handling.
 pub struct InputConfig {
@@ -15,7 +17,7 @@ impl Default for InputConfig {
     fn default() -> Self {
         Self {
             exit_key: Key::Ctrl('c'),
-            tick_rate: Duration::from_millis(100),
+            tick_rate: Duration::from_millis(TICK_RATE),
         }
     }
 }
@@ -76,5 +78,9 @@ impl InputHandler {
     /// This function will block the current thread.
     pub fn next(&self) -> Result<Input<Key>, mpsc::RecvError> {
         self.rx.recv()
+    }
+
+    pub fn try_next(&self) -> Result<Input<Key>, mpsc::TryRecvError> {
+        self.rx.try_recv()
     }
 }

@@ -128,10 +128,6 @@ fn gui_loop(mut app: App,
             mut terminal: Terminal<CrosstermBackend<Stdout>>)
     -> Terminal<CrosstermBackend<Stdout>> {
     while !app.kill_signal {
-        if let Err(_) = terminal.draw(|frame| draw(frame, &mut app)) {
-            app.kill_signal = true;
-        }
-
         match app.event_receiver.try_recv() {
             Ok(Event::Error(_)) => {}
             Ok(Event::PlayerReady) => {}
@@ -152,14 +148,18 @@ fn gui_loop(mut app: App,
             }
         }
 
-        if let Ok(input) = app.input_handler.next() { // Blocks, continues on key input or tick
+        if let Ok(input) = app.input_handler.try_next() { // Blocks, continues on key input or tick
             match input {
                 Input::Input(key) => {
                     if let Some(action) = Action::from_key(&key) {
                         app.handle_action(action);
                     }
                 }
-                Input::Tick => {}
+                Input::Tick => {
+                }
+            }
+            if let Err(_) = terminal.draw(|frame| draw(frame, &mut app)) {
+                app.kill_signal = true;
             }
         }
     }
