@@ -37,6 +37,8 @@ pub(crate) fn run_gui(options: PlayerOptions, event_receiver: Receiver<Event>, c
         Box::new(|_cc| Box::new(
             GuiApp::new(options, cmd_sender, event_receiver)))
     );
+
+    return Ok(())
 }
 
 struct GuiApp {
@@ -114,7 +116,7 @@ impl eframe::App for GuiApp {
         });
     }
 
-    fn on_exit(&mut self, _gl: &eframe::glow::Context) {
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
         // Send Quit command to Player
         let _ = self.cmd_sender.send(Command::Quit);
         // Wait for player to shutdown

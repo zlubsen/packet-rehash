@@ -11,4 +11,4 @@ Read .pcap/.pcapng files.
 
 [dependencies]
 nom = "7.1.1"
-thiserror = "1.0.31"
+thiserror = "1.0.37"

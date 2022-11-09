@@ -24,11 +24,11 @@ use thiserror::Error;
 use pcap_files::{Pcap, PcapNG};
 
 #[derive(Parser, Debug)]
-#[clap(name = "packet-play")]
-#[clap(author, version, about,long_about = None)]
+// #[clap(name = "packet-play")]
+#[command(author, version, about, long_about = None)]
 pub struct PlayerOptions {
     pub file: String,
-    #[clap(parse(try_from_str))]
+    // #[arg(value_parser, try_from_str))]
     #[clap(short, long, default_value_t = SocketAddr::new(IpAddr::V4(Ipv4Addr::BROADCAST), defaults::DEFAULT_DEST_PORT))]
     pub destination: SocketAddr,
     #[clap(short = 's', long = "source", default_value_t = defaults::DEFAULT_SRC_PORT)]
