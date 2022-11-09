@@ -7,4 +7,5 @@ members = [
     "packet-record",        # packet recording component
     "play-gui",             # Replay desktop application (based on egui)
     "play-cli",             # Replay cli application (based on tui)
+    "play-tauri/src-tauri", # Replay desktop application (based on Tauri and Svelte)
 ]
