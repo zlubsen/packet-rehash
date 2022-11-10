@@ -39,6 +39,38 @@ pub struct PlayerOptions {
     pub auto_play_disable: bool,
 }
 
+impl PlayerOptions {
+    pub fn new(file: String) -> Self {
+        Self {
+            file,
+            destination: SocketAddr::new(IpAddr::V4(Ipv4Addr::BROADCAST), defaults::DEFAULT_DEST_PORT),
+            source_port: DEFAULT_SRC_PORT,
+            ttl: DEFAULT_TTL,
+            auto_play_disable: false
+        }
+    }
+
+    pub fn with_destination(mut self, destination: SocketAddr) -> Self {
+        self.destination = destination;
+        self
+    }
+
+    pub fn with_source_port(mut self, source_port: u16) -> Self {
+        self.source_port = source_port;
+        self
+    }
+
+    pub fn with_ttl(mut self, ttl: u32) -> Self {
+        self.ttl = ttl;
+        self
+    }
+
+    pub fn disable_auto_play(mut self) -> Self {
+        self.auto_play_disable = true;
+        self
+    }
+}
+
 #[derive(Clone, Debug, Error)]
 pub enum PlayerError {
     #[error("Failed to initialize the Player")]
