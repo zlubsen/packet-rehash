@@ -3,15 +3,15 @@
     import Counter from './lib/Counter.svelte'
 
     function play() {
-        alert("play!");
+        console.log("play!");
     }
 
     function pause() {
-        alert("pause!");
+        console.log("pause!");
     }
 
     function rewind() {
-        alert("rewind!");
+        console.log("rewind!");
     }
 </script>
 

@@ -60,6 +60,39 @@
         "title": "Packet Play",
         "width": 800
       }
-    ]
+    ],
+    "cli": {
+      "description": "Desktop app for replaying DIS packets from recordings (.pcap).",
+      "args": [
+        {
+          "name": "file",
+          "index": 1,
+          "takesValue": true
+        },
+        {
+          "name": "destination",
+          "description": "The host:port combination where to emit the packets to.",
+          "short": "d",
+          "takesValue": true
+        },
+        {
+          "name": "source",
+          "description": "The local port from which to emit the packets.",
+          "short": "s",
+          "takesValue": true
+        },
+        {
+          "name": "ttl",
+          "description": "The TTL value for emitted packets.",
+          "short": "t",
+          "takesValue": true
+        },
+        {
+          "name": "auto_play_disable",
+          "description": "Flag that disables auto-playing the recording.",
+          "short": "a"
+        }
+      ]
+    }
   }
 }
