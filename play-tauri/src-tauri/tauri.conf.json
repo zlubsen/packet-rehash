@@ -66,8 +66,7 @@
       "args": [
         {
           "name": "file",
-          "index": 1,
-          "takesValue": true
+          "index": 1
         },
         {
           "name": "destination",
