@@ -1,17 +1,25 @@
 <script lang="ts">
+    import { invoke } from '@tauri-apps/api/tauri'
     import svelteLogo from './assets/svelte.svg'
     import Counter from './lib/Counter.svelte'
 
-    function play() {
-        console.log("play!");
+    function play(event: MouseEvent) {
+        invoke('action_play')
+            .then((message) => console.log(message))
+            .catch((error) => console.error(error));
     }
 
-    function pause() {
-        console.log("pause!");
+    function pause(event: MouseEvent) {
+        invoke('action_pause')
+            .then((message) => console.log(message))
+            .catch((error) => console.error(error));
     }
 
-    function rewind() {
-        console.log("rewind!");
+    function rewind(event: MouseEvent) {
+        // event.target
+        invoke('action_rewind')
+            .then((message) => console.log(message))
+            .catch((error) => console.error(error));
     }
 </script>
 

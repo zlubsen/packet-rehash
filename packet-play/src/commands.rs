@@ -1,3 +1,5 @@
+use std::fmt::{Display, Formatter};
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Command {
     Play,
@@ -24,6 +26,17 @@ impl From<usize> for Command {
             1 => { Command::Pause }
             2 => { Command::Rewind }
             3 | _ => { Command::Quit }
+        }
+    }
+}
+
+impl Display for Command {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Command::Play => { write!(f, "Play") }
+            Command::Pause => { write!(f, "Pause") }
+            Command::Rewind => { write!(f, "Rewind") }
+            Command::Quit => { write!(f, "Quit") }
         }
     }
 }
