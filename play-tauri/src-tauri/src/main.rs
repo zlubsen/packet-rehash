@@ -106,15 +106,15 @@ fn main() {
             //     _ => {}
             // }
         )
-        .invoke_handler(tauri::generate_handler![action_update_settings,
-            action_open, action_play, action_pause, action_rewind])
+        .invoke_handler(tauri::generate_handler![cmd_update_settings,
+            cmd_open, cmd_play, cmd_pause, cmd_rewind])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
 
 #[tauri::command]
-fn action_update_settings(settings_state: tauri::State<SettingsWrapper>,
-                          destination: &str, source_port: u16, ttl: u32) -> Result<(), PlayError> {
+fn cmd_update_settings(settings_state: tauri::State<SettingsWrapper>,
+                       destination: &str, source_port: u16, ttl: u32) -> Result<(), PlayError> {
     let mut settings = settings_state.settings.write().unwrap();
     *settings = Settings {
         file: settings.file.clone(),
@@ -126,9 +126,9 @@ fn action_update_settings(settings_state: tauri::State<SettingsWrapper>,
 }
 
 #[tauri::command]
-fn action_open(settings_state: tauri::State<SettingsWrapper>,
-               player_state: tauri::State<PlayerWrapper>,
-               file_path: &str) -> Result<(), PlayError> {
+fn cmd_open(settings_state: tauri::State<SettingsWrapper>,
+            player_state: tauri::State<PlayerWrapper>,
+            file_path: &str) -> Result<(), PlayError> {
     match Recording::try_from(file_path) {
         Ok(recording) => {
             let handle = player_state.player.read().unwrap();
@@ -161,7 +161,7 @@ fn action_open(settings_state: tauri::State<SettingsWrapper>,
 }
 
 #[tauri::command]
-fn action_play(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayError> {
+fn cmd_play(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayError> {
     let handle = player_state.player.read().unwrap();
     if let Some(handle) = &*handle {
         let _ = &handle.cmd_sender.lock().unwrap().send(Command::Play);
@@ -172,7 +172,7 @@ fn action_play(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayErro
 }
 
 #[tauri::command]
-fn action_pause(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayError> {
+fn cmd_pause(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayError> {
     let handle = player_state.player.read().unwrap();
     if let Some(handle) = &*handle {
         let _ = &handle.cmd_sender.lock().unwrap().send(Command::Pause);
@@ -183,7 +183,7 @@ fn action_pause(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayErr
 }
 
 #[tauri::command]
-fn action_rewind(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayError> {
+fn cmd_rewind(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayError> {
     let handle = player_state.player.read().unwrap();
     if let Some(handle) = &*handle {
         let _ = &handle.cmd_sender.lock().unwrap().send(Command::Rewind);
