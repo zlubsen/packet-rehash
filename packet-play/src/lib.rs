@@ -71,7 +71,7 @@ impl PlayerOptions {
     }
 }
 
-#[derive(Clone, Debug, Error)]
+#[derive(Clone, Debug, Error, serde::Serialize)]
 pub enum PlayerError {
     #[error("Failed to initialize the Player")]
     PlayerInitError,

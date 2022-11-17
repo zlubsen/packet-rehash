@@ -6,7 +6,7 @@
     "distDir": "../public"
   },
   "package": {
-    "productName": "play-tauri",
+    "productName": "Packet Play",
     "version": "0.1.0"
   },
   "tauri": {

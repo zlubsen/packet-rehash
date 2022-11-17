@@ -10,6 +10,7 @@ A tool to replay .pcap files (and .pcapng in the future). Assumes captured packe
 
 [dependencies]
 clap =  { version = "4.0.20", features = ["derive"] }
-thiserror = "1.0.37"
+thiserror = "1.0"
 pcap-files = { path = "../pcap-files" }
 log = "0.4.17"
+serde = "1.0"

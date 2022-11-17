@@ -27,7 +27,7 @@ pub struct Player {
     event_tx: Sender<Event>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, serde::Serialize)]
 pub enum PlayerState {
     Initial,
     Playing,

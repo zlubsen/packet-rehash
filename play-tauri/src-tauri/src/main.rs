@@ -6,8 +6,11 @@
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::{Arc, mpsc, Mutex, RwLock};
 use std::sync::mpsc::{Receiver, Sender};
+use std::thread;
 use std::thread::JoinHandle;
-use serde::Serialize;
+use std::time::Duration;
+use serde::{Serialize};
+use tauri::{Manager, State, WindowEvent};
 use packet_play::{Command, defaults, Event, Player, PlayerState, PositionChange, Recording};
 
 #[derive(thiserror::Error, Debug, Serialize)]
@@ -48,6 +51,7 @@ struct PlayerWrapper {
     player: RwLock<Option<PlayerHandle>>
 }
 
+#[derive(Debug)]
 struct PlayerHandle {
     player_handle: JoinHandle<()>,
     current_state : PlayerState,
@@ -85,28 +89,33 @@ fn main() {
         .manage(SettingsWrapper { settings: RwLock::new(Settings::default()) })
         .manage(PlayerWrapper { player: RwLock::new(None) })
         // .setup(|app| {
+        //     let _main_window = app.get_window("main").unwrap();
+        //
         //     Ok(())
         // })
-        .on_window_event(|event|
-                             {}
-            // match event.event() {
-            //     WindowEvent::CloseRequested { .. } => {
-            //         // TODO shut down the running player
-            //         let player_state = event.window().state(PlayerWrapper);
-            //         let handle = player_state.player.read().unwrap();
-            //         if let Some(handle) = &*handle {
-            //             let _ = &handle.cmd_sender.send(Command::Play);
-            //             Ok(())
-            //         }
-            //
-            //     }
-            //     WindowEvent::FileDrop(_) => {
-            //         // TODO load file (refactor fn from action_open)
-            //     }
-            //     _ => {}
-            // }
-        )
-        .invoke_handler(tauri::generate_handler![cmd_update_settings,
+        .on_window_event(|event| {
+            match event.event() {
+                WindowEvent::CloseRequested { .. } => {
+                    let player_state: State<PlayerWrapper> = event.window().state();
+                    let handle = player_state.player.read().unwrap();
+                    if let Some(handle) = &*handle {
+                        let _ = &handle.cmd_sender.lock().unwrap().send(Command::Quit);
+                        while let Ok(player_event) = &handle.event_receiver.lock().unwrap().recv() {
+                            match player_event {
+                                Event::QuitCommanded => { return; }
+                                _ => {}
+                            }
+                        }
+                    }
+                }
+                WindowEvent::FileDrop(_) => {
+                    // TODO load file (refactor fn from cmd_open)
+                }
+                _ => {}
+            }
+        })
+        .invoke_handler(tauri::generate_handler![
+            cmd_update_settings,
             cmd_open, cmd_play, cmd_pause, cmd_rewind])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -126,31 +135,39 @@ fn cmd_update_settings(settings_state: tauri::State<SettingsWrapper>,
 }
 
 #[tauri::command]
-fn cmd_open(settings_state: tauri::State<SettingsWrapper>,
+fn cmd_open(window: tauri::Window,
+            settings_state: tauri::State<SettingsWrapper>,
             player_state: tauri::State<PlayerWrapper>,
             file_path: &str) -> Result<(), PlayError> {
     match Recording::try_from(file_path) {
         Ok(recording) => {
-            let handle = player_state.player.read().unwrap();
-            if let Some(handle) = &*handle {
-                let _ = handle.cmd_sender.lock().unwrap().send(Command::Quit);
-                // TODO join on the thread... but join takes ownership and that is not possible behind a shared reference
-                // handle.player_handle.join().expect("Player thread panicked while loading new file.");
+            {
+                let handle = player_state.player.read().unwrap();
+                if let Some(handle) = &*handle {
+                    let _ = handle.cmd_sender.lock().unwrap().send(Command::Quit);
+                    // TODO join on the thread... but join takes ownership and that is not possible behind a shared reference
+                    // handle.player_handle.join().expect("Player thread panicked while loading new file.");
+                }
             }
             { // update Settings
                 let mut settings = settings_state.settings.write().unwrap();
                 settings.file = Some(file_path.to_string());
             }
 
-            let handle = {
+            let player_handle = {
                 let settings = settings_state.settings.read().unwrap();
                 PlayerHandle::load_player(
                     recording, &*settings)
             };
             { // set new PlayerHandle
                 let mut new_handle = player_state.player.write().unwrap();
-                *new_handle = Some(handle);
+                *new_handle = Some(player_handle);
             }
+            let _event_handle = {
+                let state_guard = player_state.player.read().unwrap();
+                let receiver = (state_guard.as_ref().unwrap()).event_receiver.clone();
+                run_event_thread(receiver, window);
+            };
 
             Ok(())
         }
@@ -158,6 +175,36 @@ fn cmd_open(settings_state: tauri::State<SettingsWrapper>,
             return Err(PlayError::CannotLoadFile)
         }
     }
+}
+
+fn run_event_thread(receiver: Arc<Mutex<Receiver<Event>>>, window: tauri::Window) -> JoinHandle<()> {
+    thread::spawn(move || {
+        loop {
+            let receiver_lock = receiver.lock().unwrap();
+            if let Ok(event) = receiver_lock.recv() {
+                match event {
+                    Event::Error(err) => {
+                        let _ = window.emit("player_event_error", err).unwrap();
+                    }
+                    Event::PlayerReady => {
+                        let _ = window.emit("player_event_ready", "").unwrap();
+                    }
+                    Event::PlayerStateChanged(state_update) => {
+                        let _ = window.emit("player_event_state", state_update).unwrap();
+                    }
+                    Event::PlayerPositionChanged(position_update) => {
+                        let _ = window.emit("player_event_position", position_update).unwrap();
+                    }
+                    Event::QuitCommanded => {
+                        let _ = window.emit("player_event_quit", "").unwrap();
+                        return;
+                    }
+                }
+            } else {
+                return;
+            }
+        }
+    })
 }
 
 #[tauri::command]
