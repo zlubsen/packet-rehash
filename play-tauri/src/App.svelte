@@ -13,11 +13,11 @@
     interface PlayerPosition {
         position: number,
         max_position: number,
-        time_position: any,
-        time_total: any,
+        time_position_secs: any,
+        time_total_secs: any,
     }
 
-    type PlayerState = "" | "Initial" | "Playing" | "Paused" | "Finished" | "Quit";
+    type PlayerState = "Uninitialised" | "Initial" | "Playing" | "Paused" | "Finished" | "Quit";
 
     appWindow.listen("player_event_error", ({ event, payload }) => {
         // console.log(event);
@@ -37,8 +37,8 @@
             position: payload.position,
             max_position: payload.max_position,
             // TODO extract time
-            time_position: new Date(1970, 0, 1).setTime(payload.time_position.secs * 1000),
-            time_total: new Date(1970, 0, 1).setTime(payload.time_total.secs * 1000),
+            time_position_secs: payload.time_position.secs,
+            time_total_secs: payload.time_total.secs,
         };
         // console.log(event);
         // console.log(payload);
@@ -48,9 +48,9 @@
         // console.log(payload);
     });
 
-    let DEFAULT_SETTINGS = {
+    const DEFAULT_SETTINGS : Settings = {
         destination: "192.168.8.255:3000",
-        source_port: 3001,
+        source_port: 33000,
         ttl: 1
     }
 
@@ -59,12 +59,12 @@
     let setting_source_port : number = DEFAULT_SETTINGS.source_port;
     let setting_ttl : number = DEFAULT_SETTINGS.ttl;
     let current_file : string = "";
-    let player_state :PlayerState = "";
+    let player_state :PlayerState = "Uninitialised";
     let player_position : PlayerPosition = {
         position: 0,
         max_position: 0,
-        time_position: new Date(1970, 0, 1),
-        time_total: new Date(1970, 0, 1),
+        time_position_secs: 0,
+        time_total_secs: 0,
     }
 
     function update_settings(event: MouseEvent) {
@@ -117,31 +117,65 @@
             .catch((error) => console.error(error));
     }
 
-    function isUninitialised(): boolean {
-        return player_state === "Uninitialised";
+    function canPlay(state: PlayerState) : boolean {
+        return state === "Initial" ||
+            state === "Paused";
     }
 
-    function isPlaying(): boolean {
-        return player_state === "Playing";
+    function canPause(state: PlayerState) : boolean {
+        return state === "Playing";
     }
 
-    function isPaused(): boolean {
-        return player_state === "Paused";
+    function canRewind(state: PlayerState) : boolean {
+        return state === "Playing" ||
+            state === "Paused" ||
+            state === "Finished";
     }
 
-    function isInitial(): boolean {
-        return player_state === "Initial";
+    function isUninitialised(state: PlayerState): boolean {
+        return state === "Uninitialised";
     }
 
-    function isFinished(): boolean {
-        return player_state === "Finished";
+    function isPlaying(state: PlayerState): boolean {
+        return state === "Playing";
+    }
+
+    function isPaused(state: PlayerState): boolean {
+        return state === "Paused";
+    }
+
+    function isInitial(state: PlayerState): boolean {
+        return state === "Initial";
+    }
+
+    function isFinished(state: PlayerState): boolean {
+        return state === "Finished";
+    }
+
+    function disableBtn(state: boolean): string {
+        return state ? "disabled" : "";
+    }
+
+    function formatSecs(seconds: number): string {
+        console.log(seconds);
+        if(seconds<0) {
+            return ""
+        }
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = Math.floor((seconds % 3600) % 60);
+        const hrs_fmt = hrs < 10 ? `0${hrs}` : `${hrs}`;
+        const mins_fmt = mins < 10 ? `0${mins}` : `${mins}`;
+        const secs_fmt = secs < 10 ? `0${secs}` : `${secs}`;
+
+        return `${hrs_fmt}:${mins_fmt}:${secs_fmt}`;
     }
 </script>
 
-<main class="main-viewport border flex flex-col justify-between">
+<main class="main-viewport flex flex-col justify-between bg-base-100 border">
     <h1 class="py-2 grow-0">Packet Play</h1>
 
-    <div class="grow flex justify-between p-0 border">
+    <div class="grow flex justify-between p-0 bg-base-200">
         <div class="flex-auto w-1/2 p-0">
             Player status
             {#if has_file_loaded}
@@ -150,11 +184,10 @@
                     <div class="">{current_file}</div>
                     <div class="">State</div>
                     <div class="">{player_state}</div>
-                    <div class="">Position</div>
+                    <div class="">Packets</div>
                     <div class="">{player_position.position}/{player_position.max_position}</div>
-                    <div class="">Time</div>
-                    <div class="">{player_position.time_position}/{player_position.time_total}</div>
-<!--                    <div class="">{asString('hh:mm:ss', player_position.time_position)}/{asString('hh:mm:ss', player_position.time_total)}</div>-->
+                    <div class="">Length</div>
+                    <div class="">{formatSecs(player_position.time_total_secs)}</div>
                 </div>
             {:else}
                 <div>
@@ -176,24 +209,24 @@
     </div>
 
     <div class="py-2 grow-0 px-4">
-        Progress bar
         <progress class="progress progress-primary" value="{player_position.position}" max="{player_position.max_position}"></progress>
+        [{formatSecs(player_position.time_position_secs)}] / [{formatSecs(player_position.time_total_secs)}]
     </div>
 
     <div class="grow-0 flex flex-row flex-no-wrap justify-evenly w-full py-2">
-        <button on:click={play} class="btn btn-primary btn-lg" class:btn-active={isPlaying()}>
+        <button on:click={play} class="btn btn-primary btn-lg" disabled="{disableBtn(!canPlay(player_state))}" class:btn-active={isPlaying()}>
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="player-control-icon">
                 <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm14.024-.983a1.125 1.125 0 010 1.966l-5.603 3.113A1.125 1.125 0 019 15.113V8.887c0-.857.921-1.4 1.671-.983l5.603 3.113z" clip-rule="evenodd" />
             </svg>
         </button>
 
-        <button on:click={pause} class="btn btn-primary btn-lg" class:btn-active={isPaused()}>
+        <button on:click={pause} class="btn btn-primary btn-lg" disabled="{disableBtn(!canPause(player_state))}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="player-control-icon">
                 <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zM9 8.25a.75.75 0 00-.75.75v6c0 .414.336.75.75.75h.75a.75.75 0 00.75-.75V9a.75.75 0 00-.75-.75H9zm5.25 0a.75.75 0 00-.75.75v6c0 .414.336.75.75.75H15a.75.75 0 00.75-.75V9a.75.75 0 00-.75-.75h-.75z" clip-rule="evenodd" />
             </svg>
         </button>
 
-        <button on:click={rewind} class="btn btn-primary btn-lg" class:btn-disabled={isInitial()}>
+        <button on:click={rewind} class="btn btn-primary btn-lg" disabled="{disableBtn(!canRewind(player_state))}">
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="player-control-icon">
                 <path fill-rule="evenodd" d="M9.195 18.44c1.25.713 2.805-.19 2.805-1.629v-2.34l6.945 3.968c1.25.714 2.805-.188 2.805-1.628V8.688c0-1.44-1.555-2.342-2.805-1.628L12 11.03v-2.34c0-1.44-1.555-2.343-2.805-1.629l-7.108 4.062c-1.26.72-1.26 2.536 0 3.256l7.108 4.061z" clip-rule="evenodd" />
             </svg>
