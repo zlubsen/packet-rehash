@@ -10,11 +10,11 @@
     }
 
     function pause() {
-        dispatch('play', {});
+        dispatch('pause', {});
     }
 
     function rewind() {
-        dispatch('play', {});
+        dispatch('rewind', {});
     }
 
     function open_file() {

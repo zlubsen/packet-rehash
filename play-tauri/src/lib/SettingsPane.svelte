@@ -14,7 +14,7 @@
     let source_port : number = DEFAULT_SETTINGS.source_port;
     let ttl : number = DEFAULT_SETTINGS.ttl;
 
-    function update() {
+    function update(event: MouseEvent) {
         dispatch('update', {
             destination: destination,
             source_port: source_port,
@@ -32,5 +32,6 @@
         <input type="text" id="input-port" bind:value={source_port} placeholder="{DEFAULT_SETTINGS.source_port}" class="input input-secondary input-sm">
         <label class="label"><span class="label-text">Time To Live</span></label>
         <input type="text" id="input-ttl" bind:value={ttl} placeholder="{DEFAULT_SETTINGS.ttl}" class="input input-secondary input-sm">
+        <div class="col-span-2 text-right"><button class="btn btn-sm" on:click={update}>Save</button></div>
     </div>
 </div>

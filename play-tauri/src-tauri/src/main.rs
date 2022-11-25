@@ -121,6 +121,36 @@ fn main() {
         .expect("error while running tauri application");
 }
 
+fn run_event_thread(receiver: Arc<Mutex<Receiver<Event>>>, window: tauri::Window) -> JoinHandle<()> {
+    thread::spawn(move || {
+        loop {
+            let receiver_lock = receiver.lock().unwrap();
+            if let Ok(event) = receiver_lock.recv() {
+                match event {
+                    Event::Error(err) => {
+                        let _ = window.emit("player_event_error", err).unwrap();
+                    }
+                    Event::PlayerReady => {
+                        let _ = window.emit("player_event_ready", "").unwrap();
+                    }
+                    Event::PlayerStateChanged(state_update) => {
+                        let _ = window.emit("player_event_state", state_update).unwrap();
+                    }
+                    Event::PlayerPositionChanged(position_update) => {
+                        let _ = window.emit("player_event_position", position_update).unwrap();
+                    }
+                    Event::QuitCommanded => {
+                        let _ = window.emit("player_event_quit", "").unwrap();
+                        return;
+                    }
+                }
+            } else {
+                return;
+            }
+        }
+    })
+}
+
 #[tauri::command]
 fn cmd_update_settings(settings_state: tauri::State<SettingsWrapper>,
                        destination: &str, source_port: u16, ttl: u32) -> Result<(), PlayError> {
@@ -175,36 +205,6 @@ fn cmd_open(window: tauri::Window,
             return Err(PlayError::CannotLoadFile)
         }
     }
-}
-
-fn run_event_thread(receiver: Arc<Mutex<Receiver<Event>>>, window: tauri::Window) -> JoinHandle<()> {
-    thread::spawn(move || {
-        loop {
-            let receiver_lock = receiver.lock().unwrap();
-            if let Ok(event) = receiver_lock.recv() {
-                match event {
-                    Event::Error(err) => {
-                        let _ = window.emit("player_event_error", err).unwrap();
-                    }
-                    Event::PlayerReady => {
-                        let _ = window.emit("player_event_ready", "").unwrap();
-                    }
-                    Event::PlayerStateChanged(state_update) => {
-                        let _ = window.emit("player_event_state", state_update).unwrap();
-                    }
-                    Event::PlayerPositionChanged(position_update) => {
-                        let _ = window.emit("player_event_position", position_update).unwrap();
-                    }
-                    Event::QuitCommanded => {
-                        let _ = window.emit("player_event_quit", "").unwrap();
-                        return;
-                    }
-                }
-            } else {
-                return;
-            }
-        }
-    })
 }
 
 #[tauri::command]
