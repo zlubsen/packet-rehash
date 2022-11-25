@@ -39,4 +39,20 @@ function disableBtn(state: boolean): string {
     return state ? "disabled" : "";
 }
 
-export {canPlay, canPause, canRewind, /*isUninitialised, isInitial, isPlaying, isPaused, isFinished,*/ disableBtn};
+function formatSecs(seconds: number): string {
+    if (seconds < 0) {
+        return ""
+    }
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor((seconds % 3600) % 60);
+    const hrs_fmt = hrs < 10 ? `0${hrs}` : `${hrs}`;
+    const mins_fmt = mins < 10 ? `0${mins}` : `${mins}`;
+    const secs_fmt = secs < 10 ? `0${secs}` : `${secs}`;
+
+    return `${hrs_fmt}:${mins_fmt}:${secs_fmt}`;
+}
+
+export {canPlay, canPause, canRewind,
+    /*isUninitialised, isInitial, isPlaying, isPaused, isFinished,*/
+    disableBtn, formatSecs};

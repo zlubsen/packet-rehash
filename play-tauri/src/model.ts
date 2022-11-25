@@ -11,6 +11,12 @@ interface PlayerPosition {
     time_total_secs: any,
 }
 
+interface RecordingInfo {
+    is_loaded: boolean,
+    filePath: string,
+    shortFileName: string,
+}
+
 type PlayerState = "Uninitialised" | "Initial" | "Playing" | "Paused" | "Finished" | "Quit";
 
-export type {Settings, PlayerPosition, PlayerState};
+export type {Settings, PlayerPosition, PlayerState, RecordingInfo};

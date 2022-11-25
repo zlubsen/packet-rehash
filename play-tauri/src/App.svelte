@@ -1,15 +1,17 @@
 <script lang="ts">
-    import { invoke } from '@tauri-apps/api/tauri'
-    import { open } from '@tauri-apps/api/dialog';
-    import { appWindow } from "@tauri-apps/api/window";
+    import {invoke} from '@tauri-apps/api/tauri'
+    import {open} from '@tauri-apps/api/dialog';
+    import {appWindow} from "@tauri-apps/api/window";
 
-    import { onMount } from 'svelte';
+    import {onMount} from 'svelte';
 
-    import { themeChange } from 'theme-change';
+    import {themeChange} from 'theme-change';
 
-    import type {PlayerPosition, PlayerState, Settings} from "./model";
+    import type {PlayerPosition, PlayerState, RecordingInfo, Settings} from "./model";
     import Controls from "./lib/Controls.svelte";
-    import SettingsPane from "./lib/SettingsPane.svelte";
+    import SettingsPanel from "./lib/SettingsPanel.svelte";
+    import PlayerInfo from "./lib/PlayerInfo.svelte";
+    import {formatSecs} from "./utils.js";
 
     onMount(() => {
         themeChange(false);
@@ -17,16 +19,18 @@
 
     const ALLOWED_FILES : string[] = ['pcap'];
 
-    let has_file_loaded : boolean = false;
-    let current_file_path : string = "";
-    let current_file : string = "";
+    let recording_info: RecordingInfo = {
+        is_loaded: false,
+        filePath: "",
+        shortFileName: "",
+    };
     let player_state : PlayerState = "Uninitialised";
     let player_position : PlayerPosition = {
         position: 0,
         max_position: 0,
         time_position_secs: 0,
         time_total_secs: 0,
-    }
+    };
 
     appWindow.listen("player_event_error", ({ event, payload }) => {
         // TODO display error to user.
@@ -40,7 +44,6 @@
         player_position = {
             position: payload.position,
             max_position: payload.max_position,
-            // TODO extract time
             time_position_secs: payload.time_position.secs,
             time_total_secs: payload.time_total.secs,
         };
@@ -52,6 +55,8 @@
     }
 
     function cmd_update_settings(settings: Settings) {
+        console.log("cmd_update_settings")
+        console.log(settings);
         invoke('cmd_update_settings', {
             destination: settings.destination,
             sourcePort: settings.source_port,
@@ -75,14 +80,14 @@
         } else if (selected === null) {
             // user cancelled the selection
         } else {
-            current_file_path = selected;
-            current_file = file_name_from_path(current_file_path);
+            recording_info.filePath = selected;
+            recording_info.shortFileName = file_name_from_path(recording_info.filePath);
             invoke('cmd_open', {
-                filePath: current_file_path
+                filePath: recording_info.filePath
             })
-                .then((message) => has_file_loaded = true)
+                .then((message) => recording_info.is_loaded = true)
                 .catch((error) => {
-                    has_file_loaded = false;
+                    recording_info.is_loaded = false;
                     console.error(error);
                 });
         }
@@ -105,29 +110,18 @@
             .then((message) => console.log(message))
             .catch((error) => console.error(error));
     }
-
-    function formatSecs(seconds: number): string {
-        console.log(seconds);
-        if(seconds<0) {
-            return ""
-        }
-        const hrs = Math.floor(seconds / 3600);
-        const mins = Math.floor((seconds % 3600) / 60);
-        const secs = Math.floor((seconds % 3600) % 60);
-        const hrs_fmt = hrs < 10 ? `0${hrs}` : `${hrs}`;
-        const mins_fmt = mins < 10 ? `0${mins}` : `${mins}`;
-        const secs_fmt = secs < 10 ? `0${secs}` : `${secs}`;
-
-        return `${hrs_fmt}:${mins_fmt}:${secs_fmt}`;
-    }
 </script>
 
 <main class="main-viewport flex flex-col justify-between bg-base-100 border">
     <header class="p-2">
         <h1 class="grow-0 text-primary">Packet Play</h1>
 
-        <div class="absolute top-0 right-0 text-primary-focus p-2">
-            <label>help</label>
+        <div class="absolute top-0 right-0 text-primary-focus p-2 flex">
+            <label>
+                <svg class="w-8 h-8 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" >
+                    <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5.75.75 0 000 1.5z" clip-rule="evenodd" />
+                </svg>
+            </label>
             <label class="swap swap-rotate">
                 <input type="checkbox" data-toggle-theme="bumblebee,coffee" data-act-class="ACTIVECLASS"/>
                 <svg class="swap-on fill-current w-8 h-8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM5.64,7.05a1,1,0,0,0,.7.29,1,1,0,0,0,.71-.29,1,1,0,0,0,0-1.41l-.71-.71A1,1,0,0,0,4.93,6.34Zm12,.29a1,1,0,0,0,.7-.29l.71-.71a1,1,0,1,0-1.41-1.41L17,5.64a1,1,0,0,0,0,1.41A1,1,0,0,0,17.66,7.34ZM21,11H20a1,1,0,0,0,0,2h1a1,1,0,0,0,0-2Zm-9,8a1,1,0,0,0-1,1v1a1,1,0,0,0,2,0V20A1,1,0,0,0,12,19ZM18.36,17A1,1,0,0,0,17,18.36l.71.71a1,1,0,0,0,1.41,0,1,1,0,0,0,0-1.41ZM12,6.5A5.5,5.5,0,1,0,17.5,12,5.51,5.51,0,0,0,12,6.5Zm0,9A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg>
@@ -137,26 +131,12 @@
     </header>
 
     <div class="grow flex justify-between p-0 bg-base-200">
-        <div class="flex-auto w-1/2 p-2">
-            <span class="text-primary">Player status</span>
-            {#if has_file_loaded}
-                <div class="grid grid-cols-2 gap-4 py-1">
-                    <label class="label"><span class="label-text">Recording</span></label>
-                    <label class="tooltip label text-left" data-tip="{current_file_path}"><span class="label-text">{current_file}</span></label>
-                    <label class="label"><span class="label-text">State</span></label>
-                    <label class="label"><span class="label-text">{player_state}</span></label>
-                    <label class="label"><span class="label-text">Packets</span></label>
-                    <label class="label"><span class="label-text">{player_position.position}/{player_position.max_position}</span></label>
-                    <label class="label"><span class="label-text">Length</span></label>
-                    <label class="label"><span class="label-text">{formatSecs(player_position.time_total_secs)}</span></label>
-                </div>
-            {:else}
-                <div class="label-text py-1">
-                    <span class="text-secondary">Open a file</span>
-                </div>
-            {/if}
-        </div>
-        <SettingsPane on:update={(settings)=>cmd_update_settings(settings)} />
+        <PlayerInfo
+                bind:recording_info={recording_info}
+                bind:player_state={player_state}
+                bind:player_position={player_position} />
+        <SettingsPanel
+                on:update={(event)=>cmd_update_settings(event.detail)} />
     </div>
 
     <div class="py-2 grow-0 px-4">
@@ -164,15 +144,16 @@
         <span class="text-secondary">[{formatSecs(player_position.time_position_secs)}] / [{formatSecs(player_position.time_total_secs)}]</span>
     </div>
 
-    <Controls on:play={cmd_play} on:pause={cmd_pause} on:rewind={cmd_rewind} on:open={cmd_open_file} bind:player_state={player_state} />
+    <Controls on:play={cmd_play}
+              on:pause={cmd_pause}
+              on:rewind={cmd_rewind}
+              on:open={cmd_open_file}
+              bind:player_state={player_state} />
 </main>
 
 <style>
     .main-viewport {
         @apply h-screen w-screen overflow-x-hidden overflow-y-hidden;
-        /*@apply p-0 m-0;*/
         min-height: -webkit-fill-available;
-        /*width: 90vw;*/
-        /*height: 90vh;*/
     }
 </style>
