@@ -8,9 +8,9 @@ use std::sync::{Arc, mpsc, Mutex, RwLock};
 use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use std::thread::JoinHandle;
-use std::time::Duration;
 use serde::{Serialize};
 use tauri::{Manager, State, WindowEvent};
+use tauri::FileDropEvent::Dropped;
 use packet_play::{Command, defaults, Event, Player, PlayerState, PositionChange, Recording};
 
 #[derive(thiserror::Error, Debug, Serialize)]
@@ -108,7 +108,13 @@ fn main() {
                         }
                     }
                 }
-                WindowEvent::FileDrop(_) => {
+                WindowEvent::FileDrop(drop) => {
+                    if let Dropped(files) = drop {
+                        let file = files.first().unwrap();
+                        dbg!(file);
+                        dbg!(event);
+                        // open_file(event.window, e)
+                    }
                     // TODO load file (refactor fn from cmd_open)
                 }
                 _ => {}
@@ -151,24 +157,10 @@ fn run_event_thread(receiver: Arc<Mutex<Receiver<Event>>>, window: tauri::Window
     })
 }
 
-#[tauri::command]
-fn cmd_update_settings(settings_state: tauri::State<SettingsWrapper>,
-                       destination: &str, source_port: u16, ttl: u32) -> Result<(), PlayError> {
-    let mut settings = settings_state.settings.write().unwrap();
-    *settings = Settings {
-        file: settings.file.clone(),
-        destination: destination.parse().expect("Failed to parse socket address"),
-        source_port,
-        ttl
-    };
-    Ok(())
-}
-
-#[tauri::command]
-fn cmd_open(window: tauri::Window,
-            settings_state: tauri::State<SettingsWrapper>,
-            player_state: tauri::State<PlayerWrapper>,
-            file_path: &str) -> Result<(), PlayError> {
+fn open_file(window: tauri::Window,
+             settings_state: tauri::State<SettingsWrapper>,
+             player_state: tauri::State<PlayerWrapper>,
+             file_path: &str) -> Result<(), PlayError> {
     match Recording::try_from(file_path) {
         Ok(recording) => {
             {
@@ -205,6 +197,27 @@ fn cmd_open(window: tauri::Window,
             return Err(PlayError::CannotLoadFile)
         }
     }
+}
+
+#[tauri::command]
+fn cmd_update_settings(settings_state: tauri::State<SettingsWrapper>,
+                       destination: &str, source_port: u16, ttl: u32) -> Result<(), PlayError> {
+    let mut settings = settings_state.settings.write().unwrap();
+    *settings = Settings {
+        file: settings.file.clone(),
+        destination: destination.parse().expect("Failed to parse socket address"),
+        source_port,
+        ttl
+    };
+    Ok(())
+}
+
+#[tauri::command]
+fn cmd_open(window: tauri::Window,
+            settings_state: tauri::State<SettingsWrapper>,
+            player_state: tauri::State<PlayerWrapper>,
+            file_path: &str) -> Result<(), PlayError> {
+    open_file(window, settings_state, player_state, file_path)
 }
 
 #[tauri::command]

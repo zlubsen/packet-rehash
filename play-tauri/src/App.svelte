@@ -12,12 +12,17 @@
     import SettingsPanel from "./lib/SettingsPanel.svelte";
     import PlayerInfo from "./lib/PlayerInfo.svelte";
     import {formatSecs} from "./utils.js";
+    import ProgressBar from "./lib/ProgressBar.svelte";
 
     onMount(() => {
         themeChange(false);
     })
 
     const ALLOWED_FILES : string[] = ['pcap'];
+
+    const handlers = new Map();
+    let handlers_tip: string;
+    set_key_handlers();
 
     let recording_info: RecordingInfo = {
         is_loaded: false,
@@ -33,7 +38,7 @@
     };
 
     appWindow.listen("player_event_error", ({ event, payload }) => {
-        // TODO display error to user.
+        // TODO display error to user. Use toaster.
         console.error(payload);
     });
     appWindow.listen("player_event_ready", ({ event, payload }) => {});
@@ -50,13 +55,25 @@
     });
     appWindow.listen("player_event_quit", ({ event, payload }) => {});
 
+    function set_key_handlers() {
+        handlers.set('KeyO', { handler: key_open_file, key: "Ctrl+O", description: "Open file" });
+        handlers.set('Space', { handler: key_play_pause, key: "Space", description: "Play/Pause" });
+        handlers.set('KeyR', { handler: key_rewind, key: "r", description: "Rewind" });
+        handlers_tip = "";
+        handlers.forEach((v,k) => {
+            handlers_tip += `${v.key} => ${v.description}</br>`
+        });
+    }
+
     function file_name_from_path(path: string) : string {
-        return path.slice(path.lastIndexOf('/')+1, path.length);
+        const lastNixSlash = path.lastIndexOf('/');
+        if(lastNixSlash>-1)
+            return path.slice(lastNixSlash+1, path.length);
+        else
+            return path.slice(path.lastIndexOf('\\')+1, path.length);
     }
 
     function cmd_update_settings(settings: Settings) {
-        console.log("cmd_update_settings")
-        console.log(settings);
         invoke('cmd_update_settings', {
             destination: settings.destination,
             sourcePort: settings.source_port,
@@ -66,7 +83,7 @@
             .catch((error) => console.error(error));
     }
 
-    async function cmd_open_file(event: MouseEvent) {
+    async function cmd_open_file() {
         const selected = await open({
             multiple: false,
             filters: [{
@@ -93,31 +110,87 @@
         }
     }
 
-    function cmd_play(event: Event) {
+    function cmd_play() {
         invoke('cmd_play')
             .then((message) => console.log(message))
             .catch((error) => console.error(error));
     }
 
-    function cmd_pause(event: Event) {
+    function cmd_pause() {
         invoke('cmd_pause')
             .then((message) => console.log(message))
             .catch((error) => console.error(error));
     }
 
-    function cmd_rewind(event: Event) {
+    function cmd_rewind() {
         invoke('cmd_rewind')
             .then((message) => console.log(message))
             .catch((error) => console.error(error));
     }
+
+    function click_open_file(event: PointerEvent) {
+        cmd_open_file();
+    }
+
+    function click_play(event: PointerEvent) {
+        cmd_open_file();
+    }
+
+    function click_pause(event: PointerEvent) {
+        cmd_open_file();
+    }
+
+    function click_rewind(event: PointerEvent) {
+        cmd_rewind();
+    }
+
+    function key_handler(event: KeyboardEvent) {
+        if (handlers.has(event.code)) {
+            let handler = handlers.get(event.code);
+            handler.handler(event);
+        }
+    }
+
+    function key_open_file(event: KeyboardEvent) {
+        if (event.ctrlKey) cmd_open_file();
+    }
+
+    function key_play_pause(event: KeyboardEvent) {
+        switch(player_state) {
+            case "Uninitialised":
+                cmd_play();
+                break;
+            case "Initial":
+                cmd_play()
+                break;
+            case "Playing":
+                cmd_pause()
+                break;
+            case "Paused":
+                cmd_play()
+                break;
+            case "Finished":
+                cmd_rewind();
+                break;
+            case "Quit":
+            default:
+                break;
+        }
+    }
+
+    function key_rewind(event: KeyboardEvent) {
+        cmd_rewind();
+    }
 </script>
+
+<svelte:window on:keypress={key_handler}></svelte:window>
 
 <main class="main-viewport flex flex-col justify-between bg-base-100 border">
     <header class="p-2">
         <h1 class="grow-0 text-primary">Packet Play</h1>
 
         <div class="absolute top-0 right-0 text-primary-focus p-2 flex">
-            <label>
+            <label class="tooltip tooltip-left" data-tip="{handlers_tip}">
                 <svg class="w-8 h-8 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" >
                     <path fill-rule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5.75.75 0 000 1.5z" clip-rule="evenodd" />
                 </svg>
@@ -130,7 +203,7 @@
         </div>
     </header>
 
-    <div class="grow flex justify-between p-0 bg-base-200">
+    <div class="grow flex justify-between p-0">
         <PlayerInfo
                 bind:recording_info={recording_info}
                 bind:player_state={player_state}
@@ -139,15 +212,12 @@
                 on:update={(event)=>cmd_update_settings(event.detail)} />
     </div>
 
-    <div class="py-2 grow-0 px-4">
-        <progress class="progress progress-secondary" value="{player_position.position}" max="{player_position.max_position}"></progress>
-        <span class="text-secondary">[{formatSecs(player_position.time_position_secs)}] / [{formatSecs(player_position.time_total_secs)}]</span>
-    </div>
+    <ProgressBar bind:player_position={player_position} />
 
-    <Controls on:play={cmd_play}
-              on:pause={cmd_pause}
-              on:rewind={cmd_rewind}
-              on:open={cmd_open_file}
+    <Controls on:play={click_play}
+              on:pause={click_pause}
+              on:rewind={click_rewind}
+              on:open={click_open_file}
               bind:player_state={player_state} />
 </main>
 

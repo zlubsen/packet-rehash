@@ -57,7 +57,7 @@
     }
 </script>
 
-<div class="flex-auto w-1/2 p-2">
+<div class="flex-auto w-1/2 p-2 mx-1 bg-base-200 rounded">
     <span class="text-primary">Settings</span>
     <div class="grid grid-cols-2 gap-4 form-control py-1">
         {#if can_edit}
