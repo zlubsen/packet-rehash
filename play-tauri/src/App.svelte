@@ -1,21 +1,28 @@
 <script lang="ts">
-    import {invoke} from '@tauri-apps/api/tauri'
-    import {open} from '@tauri-apps/api/dialog';
-    import {appWindow} from "@tauri-apps/api/window";
+    import { invoke } from '@tauri-apps/api/tauri'
+    import { open } from '@tauri-apps/api/dialog';
+    import { listen } from '@tauri-apps/api/event'
 
-    import {onMount} from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
 
-    import {themeChange} from 'theme-change';
+    import { themeChange } from 'theme-change';
 
-    import type {PlayerPosition, PlayerState, RecordingInfo, Settings} from "./model";
+    import type { PlayerPosition, PlayerState, RecordingInfo, Settings } from "./model";
     import Controls from "./lib/Controls.svelte";
     import SettingsPanel from "./lib/SettingsPanel.svelte";
     import PlayerInfo from "./lib/PlayerInfo.svelte";
-    import {formatSecs} from "./utils.js";
     import ProgressBar from "./lib/ProgressBar.svelte";
 
     onMount(() => {
         themeChange(false);
+    })
+
+    onDestroy(async () => {
+        (await unlisten_error)();
+        (await unlisten_ready)();
+        (await unlisten_state)();
+        (await unlisten_position)();
+        (await unlisten_quit)();
     })
 
     const ALLOWED_FILES : string[] = ['pcap'];
@@ -37,15 +44,15 @@
         time_total_secs: 0,
     };
 
-    appWindow.listen("player_event_error", ({ event, payload }) => {
+    const unlisten_error = listen("player_event_error", ({ event, payload }) => {
         // TODO display error to user. Use toaster.
         console.error(payload);
     });
-    appWindow.listen("player_event_ready", ({ event, payload }) => {});
-    appWindow.listen("player_event_state", ({ event, payload }) => {
+    const unlisten_ready = listen("player_event_ready", ({ event, payload }) => {});
+    const unlisten_state = listen("player_event_state", ({ event, payload }) => {
         player_state = payload.state;
     });
-    appWindow.listen("player_event_position", ({ event, payload }) => {
+    const unlisten_position = listen("player_event_position", ({ event, payload }) => {
         player_position = {
             position: payload.position,
             max_position: payload.max_position,
@@ -53,7 +60,7 @@
             time_total_secs: payload.time_total.secs,
         };
     });
-    appWindow.listen("player_event_quit", ({ event, payload }) => {});
+    const unlisten_quit = listen("player_event_quit", ({ event, payload }) => {});
 
     function set_key_handlers() {
         handlers.set('KeyO', { handler: key_open_file, key: "Ctrl+O", description: "Open file" });

@@ -9,9 +9,11 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::thread;
 use std::thread::JoinHandle;
 use serde::{Serialize};
-use tauri::{Manager, State, WindowEvent};
+use tauri::{Manager, Runtime, State, WindowEvent};
 use tauri::FileDropEvent::Dropped;
-use packet_play::{Command, defaults, Event, Player, PlayerState, PositionChange, Recording};
+use packet_play::{Command, defaults, Event, Player, Recording};
+
+const MAIN_WINDOW_LABEL: &str = "main";
 
 #[derive(thiserror::Error, Debug, Serialize)]
 enum PlayError {
@@ -19,8 +21,8 @@ enum PlayError {
     CannotLoadFile,
     #[error("Incorrect player state for command {0}.")]
     IncorrectStateForCommand(String),
-    #[error("Error updating settings.")]
-    UpdateSettingsError
+    // #[error("Error updating settings.")]
+    // UpdateSettingsError
 }
 
 struct SettingsWrapper {
@@ -54,8 +56,6 @@ struct PlayerWrapper {
 #[derive(Debug)]
 struct PlayerHandle {
     player_handle: JoinHandle<()>,
-    current_state : PlayerState,
-    current_position : PositionChange,
     cmd_sender: Arc<Mutex<Sender<Command>>>,
     event_receiver: Arc<Mutex<Receiver<Event>>>,
 }
@@ -76,8 +76,6 @@ impl PlayerHandle {
 
         Self {
             player_handle,
-            current_state: PlayerState::Initial,
-            current_position: Default::default(),
             cmd_sender: Arc::new(Mutex::new(cmd_sender)),
             event_receiver: Arc::new(Mutex::new(event_receiver)),
         }
@@ -88,11 +86,6 @@ fn main() {
     tauri::Builder::default()
         .manage(SettingsWrapper { settings: RwLock::new(Settings::default()) })
         .manage(PlayerWrapper { player: RwLock::new(None) })
-        // .setup(|app| {
-        //     let _main_window = app.get_window("main").unwrap();
-        //
-        //     Ok(())
-        // })
         .on_window_event(|event| {
             match event.event() {
                 WindowEvent::CloseRequested { .. } => {
@@ -110,12 +103,16 @@ fn main() {
                 }
                 WindowEvent::FileDrop(drop) => {
                     if let Dropped(files) = drop {
-                        let file = files.first().unwrap();
-                        dbg!(file);
-                        dbg!(event);
-                        // open_file(event.window, e)
+                        let file = files.first().expect("Expected exactly one path.")
+                            .as_os_str().to_str().expect("Expected to convert OsStr to &str");
+                        let settings : State<SettingsWrapper> = event.window().state();
+                        let player_handle : State<PlayerWrapper> = event.window().state();
+                        let window = event.window().get_window(MAIN_WINDOW_LABEL)
+                            .expect("Expected 'main' window to be available.");
+                        // TODO move drop event handling to the browser and use the existing command to open the file
+                        let _res = open_file(window, &settings.settings, &player_handle.player, file);
                     }
-                    // TODO load file (refactor fn from cmd_open)
+
                 }
                 _ => {}
             }
@@ -127,26 +124,26 @@ fn main() {
         .expect("error while running tauri application");
 }
 
-fn run_event_thread(receiver: Arc<Mutex<Receiver<Event>>>, window: tauri::Window) -> JoinHandle<()> {
+fn run_event_thread<R: Runtime>(receiver: Arc<Mutex<Receiver<Event>>>, window: tauri::Window<R>) -> JoinHandle<()> {
     thread::spawn(move || {
         loop {
             let receiver_lock = receiver.lock().unwrap();
             if let Ok(event) = receiver_lock.recv() {
                 match event {
                     Event::Error(err) => {
-                        let _ = window.emit("player_event_error", err).unwrap();
+                        let _ = window.emit_all("player_event_error", err).unwrap();
                     }
                     Event::PlayerReady => {
-                        let _ = window.emit("player_event_ready", "").unwrap();
+                        let _ = window.emit_all("player_event_ready", "").unwrap();
                     }
                     Event::PlayerStateChanged(state_update) => {
-                        let _ = window.emit("player_event_state", state_update).unwrap();
+                        let _ = window.emit_all("player_event_state", state_update).unwrap();
                     }
                     Event::PlayerPositionChanged(position_update) => {
-                        let _ = window.emit("player_event_position", position_update).unwrap();
+                        let _ = window.emit_all("player_event_position", position_update).unwrap();
                     }
                     Event::QuitCommanded => {
-                        let _ = window.emit("player_event_quit", "").unwrap();
+                        let _ = window.emit_all("player_event_quit", "").unwrap();
                         return;
                     }
                 }
@@ -157,14 +154,15 @@ fn run_event_thread(receiver: Arc<Mutex<Receiver<Event>>>, window: tauri::Window
     })
 }
 
-fn open_file(window: tauri::Window,
-             settings_state: tauri::State<SettingsWrapper>,
-             player_state: tauri::State<PlayerWrapper>,
+fn open_file<R: Runtime>(window: tauri::Window<R>,
+             settings: &RwLock<Settings>,
+             player: &RwLock<Option<PlayerHandle>>,
              file_path: &str) -> Result<(), PlayError> {
     match Recording::try_from(file_path) {
         Ok(recording) => {
             {
-                let handle = player_state.player.read().unwrap();
+                // let handle = player_state.player.read().unwrap();
+                let handle = player.read().unwrap();
                 if let Some(handle) = &*handle {
                     let _ = handle.cmd_sender.lock().unwrap().send(Command::Quit);
                     // TODO join on the thread... but join takes ownership and that is not possible behind a shared reference
@@ -172,21 +170,21 @@ fn open_file(window: tauri::Window,
                 }
             }
             { // update Settings
-                let mut settings = settings_state.settings.write().unwrap();
+                let mut settings = settings.write().unwrap();
                 settings.file = Some(file_path.to_string());
             }
 
             let player_handle = {
-                let settings = settings_state.settings.read().unwrap();
+                let settings = settings.read().unwrap();
                 PlayerHandle::load_player(
                     recording, &*settings)
             };
             { // set new PlayerHandle
-                let mut new_handle = player_state.player.write().unwrap();
+                let mut new_handle = player.write().unwrap();
                 *new_handle = Some(player_handle);
             }
             let _event_handle = {
-                let state_guard = player_state.player.read().unwrap();
+                let state_guard = player.read().unwrap();
                 let receiver = (state_guard.as_ref().unwrap()).event_receiver.clone();
                 run_event_thread(receiver, window);
             };
@@ -200,7 +198,7 @@ fn open_file(window: tauri::Window,
 }
 
 #[tauri::command]
-fn cmd_update_settings(settings_state: tauri::State<SettingsWrapper>,
+fn cmd_update_settings(settings_state: State<SettingsWrapper>,
                        destination: &str, source_port: u16, ttl: u32) -> Result<(), PlayError> {
     let mut settings = settings_state.settings.write().unwrap();
     *settings = Settings {
@@ -214,14 +212,15 @@ fn cmd_update_settings(settings_state: tauri::State<SettingsWrapper>,
 
 #[tauri::command]
 fn cmd_open(window: tauri::Window,
-            settings_state: tauri::State<SettingsWrapper>,
-            player_state: tauri::State<PlayerWrapper>,
+            settings_state: State<SettingsWrapper>,
+            player_state: State<PlayerWrapper>,
             file_path: &str) -> Result<(), PlayError> {
-    open_file(window, settings_state, player_state, file_path)
+    let window = window.get_window(MAIN_WINDOW_LABEL).unwrap();
+    open_file(window, &settings_state.settings, &player_state.player, file_path)
 }
 
 #[tauri::command]
-fn cmd_play(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayError> {
+fn cmd_play(player_state: State<PlayerWrapper>) -> Result<(), PlayError> {
     let handle = player_state.player.read().unwrap();
     if let Some(handle) = &*handle {
         let _ = &handle.cmd_sender.lock().unwrap().send(Command::Play);
@@ -232,7 +231,7 @@ fn cmd_play(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayError> 
 }
 
 #[tauri::command]
-fn cmd_pause(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayError> {
+fn cmd_pause(player_state: State<PlayerWrapper>) -> Result<(), PlayError> {
     let handle = player_state.player.read().unwrap();
     if let Some(handle) = &*handle {
         let _ = &handle.cmd_sender.lock().unwrap().send(Command::Pause);
@@ -243,7 +242,7 @@ fn cmd_pause(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayError>
 }
 
 #[tauri::command]
-fn cmd_rewind(player_state: tauri::State<PlayerWrapper>) -> Result<(), PlayError> {
+fn cmd_rewind(player_state: State<PlayerWrapper>) -> Result<(), PlayError> {
     let handle = player_state.player.read().unwrap();
     if let Some(handle) = &*handle {
         let _ = &handle.cmd_sender.lock().unwrap().send(Command::Rewind);
