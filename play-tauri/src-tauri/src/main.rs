@@ -101,19 +101,19 @@ fn main() {
                         }
                     }
                 }
-                WindowEvent::FileDrop(drop) => {
-                    if let Dropped(files) = drop {
-                        let file = files.first().expect("Expected exactly one path.")
-                            .as_os_str().to_str().expect("Expected to convert OsStr to &str");
-                        let settings : State<SettingsWrapper> = event.window().state();
-                        let player_handle : State<PlayerWrapper> = event.window().state();
-                        let window = event.window().get_window(MAIN_WINDOW_LABEL)
-                            .expect("Expected 'main' window to be available.");
-                        // TODO move drop event handling to the browser and use the existing command to open the file
-                        let _res = open_file(window, &settings.settings, &player_handle.player, file);
-                    }
-
-                }
+                // WindowEvent::FileDrop(drop) => {
+                //     if let Dropped(files) = drop {
+                //         let file = files.first().expect("Expected exactly one path.")
+                //             .as_os_str().to_str().expect("Expected to convert OsStr to &str");
+                //         let settings : State<SettingsWrapper> = event.window().state();
+                //         let player_handle : State<PlayerWrapper> = event.window().state();
+                //         let window = event.window().get_window(MAIN_WINDOW_LABEL)
+                //             .expect("Expected 'main' window to be available.");
+                //         // TODO move drop event handling to the browser and use the existing command to open the file
+                //         let _res = open_file(window, &settings.settings, &player_handle.player, file);
+                //     }
+                //
+                // }
                 _ => {}
             }
         })
@@ -215,7 +215,7 @@ fn cmd_open(window: tauri::Window,
             settings_state: State<SettingsWrapper>,
             player_state: State<PlayerWrapper>,
             file_path: &str) -> Result<(), PlayError> {
-    let window = window.get_window(MAIN_WINDOW_LABEL).unwrap();
+    // let window = window.get_window(MAIN_WINDOW_LABEL).unwrap();
     open_file(window, &settings_state.settings, &player_state.player, file_path)
 }
 

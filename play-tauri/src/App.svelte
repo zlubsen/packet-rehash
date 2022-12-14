@@ -1,8 +1,7 @@
 <script lang="ts">
     import { invoke } from '@tauri-apps/api/tauri'
     import { open } from '@tauri-apps/api/dialog';
-    import { listen } from '@tauri-apps/api/event'
-
+    import { appWindow } from "@tauri-apps/api/window";
     import { onMount, onDestroy } from 'svelte';
 
     import { themeChange } from 'theme-change';
@@ -18,11 +17,7 @@
     })
 
     onDestroy(async () => {
-        (await unlisten_error)();
-        (await unlisten_ready)();
-        (await unlisten_state)();
-        (await unlisten_position)();
-        (await unlisten_quit)();
+        (await file_drop_unlisten)();
     })
 
     const ALLOWED_FILES : string[] = ['pcap'];
@@ -44,15 +39,28 @@
         time_total_secs: 0,
     };
 
-    const unlisten_error = listen("player_event_error", ({ event, payload }) => {
-        // TODO display error to user. Use toaster.
-        console.error(payload);
+    const TOAST_TIMEOUT_MS: number = 2000;
+    let toasts : string[] = Array();
+
+    function add_notification(message: string) {
+        toasts.push(message);
+        toasts = toasts;
+        setTimeout(()=>{
+            toasts.shift();
+            toasts = toasts;
+        }, TOAST_TIMEOUT_MS);
+    }
+
+    appWindow.listen("player_event_error", ({ event, payload }) => {
+        add_notification(payload.toString());
     });
-    const unlisten_ready = listen("player_event_ready", ({ event, payload }) => {});
-    const unlisten_state = listen("player_event_state", ({ event, payload }) => {
+    appWindow.listen("player_event_ready", ({ event, payload }) => {
+        add_notification("Player ready.");
+    });
+    appWindow.listen("player_event_state", ({ event, payload }) => {
         player_state = payload.state;
     });
-    const unlisten_position = listen("player_event_position", ({ event, payload }) => {
+    appWindow.listen("player_event_position", ({ event, payload }) => {
         player_position = {
             position: payload.position,
             max_position: payload.max_position,
@@ -60,7 +68,14 @@
             time_total_secs: payload.time_total.secs,
         };
     });
-    const unlisten_quit = listen("player_event_quit", ({ event, payload }) => {});
+    appWindow.listen("player_event_quit", ({ event, payload }) => {});
+
+    const file_drop_unlisten = appWindow.onFileDropEvent((event) => {
+        if (event.payload.type === 'hover') {
+        } else if (event.payload.type === 'drop') {
+            cmd_open(event.payload.paths);
+        } else {}
+    });
 
     function set_key_handlers() {
         handlers.set('KeyO', { handler: key_open_file, key: "Ctrl+O", description: "Open file" });
@@ -99,22 +114,29 @@
             }]
         });
 
-        if (Array.isArray(selected)) {
-            // user selected multiple files
-        } else if (selected === null) {
-            // user cancelled the selection
-        } else {
-            recording_info.filePath = selected;
-            recording_info.shortFileName = file_name_from_path(recording_info.filePath);
-            invoke('cmd_open', {
-                filePath: recording_info.filePath
-            })
-                .then((message) => recording_info.is_loaded = true)
-                .catch((error) => {
-                    recording_info.is_loaded = false;
-                    console.error(error);
-                });
+        cmd_open(selected);
+    }
+
+    function cmd_open(selected: string | string[]) {
+        let file_path = "";
+        if (Array.isArray(selected)) {  // user selected multiple files; only open one (last in array).
+            file_path = selected.pop();
+        } else if (selected === null) { // user cancelled the selection
+            return;
+        } else {    // user selected single file
+            file_path = selected;
         }
+
+        recording_info.filePath = file_path;
+        recording_info.shortFileName = file_name_from_path(recording_info.filePath);
+        invoke('cmd_open', {
+            filePath: recording_info.filePath
+        })
+            .then((message) => recording_info.is_loaded = true)
+            .catch((error) => {
+                recording_info.is_loaded = false;
+                add_notification(error);
+            });
     }
 
     function cmd_play() {
@@ -251,8 +273,17 @@
                     {/each}
                 </tbody>
             </table>
-<!--            <div class="h-full bg-base-100" ></div>-->
         </div>
+    </div>
+
+    <div class="toast">
+        {#each toasts as toast}
+            <div class="alert alert-info">
+                <div>
+                    <span>{toast}</span>
+                </div>
+            </div>
+        {/each}
     </div>
 </div>
 
