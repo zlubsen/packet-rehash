@@ -6,6 +6,7 @@ pub enum Command {
     Pause,
     Rewind,
     Quit,
+    Seek(usize),
 }
 
 impl Command {
@@ -15,6 +16,7 @@ impl Command {
             "Pause",
             "Rewind",
             "Quit",
+            "Seek",
         ]
     }
 }
@@ -25,7 +27,8 @@ impl From<usize> for Command {
             0 => { Command::Play }
             1 => { Command::Pause }
             2 => { Command::Rewind }
-            3 | _ => { Command::Quit }
+            3 => { Command::Seek(0) }
+            4 | _ => { Command::Quit }
         }
     }
 }
@@ -37,6 +40,7 @@ impl Display for Command {
             Command::Pause => { write!(f, "Pause") }
             Command::Rewind => { write!(f, "Rewind") }
             Command::Quit => { write!(f, "Quit") }
+            Command::Seek(_) => { write!(f, "Seek") }
         }
     }
 }

@@ -58,7 +58,7 @@
       {
         "fullscreen": false,
         "height": 600,
-        "resizable": false,
+        "resizable": true,
         "title": "Packet Play",
         "width": 800
       }

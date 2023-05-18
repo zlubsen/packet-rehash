@@ -157,6 +157,17 @@
             .catch((error) => console.error(error));
     }
 
+    function cmd_seek(position: number) {
+        invoke('cmd_seek', {
+            toPosition: Number(position)
+        })
+            .then((message) => console.log(message))
+            .catch((error) => {
+                console.log(error);
+                add_notification(error);
+            });
+    }
+
     function click_open_file(event: PointerEvent) {
         cmd_open_file();
     }
@@ -171,6 +182,10 @@
 
     function click_rewind(event: PointerEvent) {
         cmd_rewind();
+    }
+
+    function click_seek(position: CustomEvent) {
+        cmd_seek(position.detail);
     }
 
     function key_handler(event: KeyboardEvent) {
@@ -245,7 +260,8 @@
                         on:update={(event)=>cmd_update_settings(event.detail)} />
             </div>
 
-            <ProgressBar bind:player_position={player_position} />
+            <ProgressBar bind:player_position={player_position}
+                on:seek={click_seek}/>
 
             <Controls on:play={click_play}
                       on:pause={click_pause}

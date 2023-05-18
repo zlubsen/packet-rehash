@@ -102,6 +102,33 @@ impl Player {
                             playback_elapsed.clone(), total_duration.clone()));
                     Some(PlayerState::Initial)
                 }
+                Ok(Command::Seek(to_position)) => {
+                    if to_position < recording.packets.len() {
+                        packets = recording.packets.iter().enumerate();
+                        (0..to_position).for_each(|_| {packets.next();} );
+                        // for _ in 0..to_position {
+                        //     // FIXME manually looping to the sought packet is not very nice
+                        //     let _ = packets.next();
+                        // }
+                        if let Some((pos, sought_packet)) = packets.next() {
+                            previous_ts = duration_from_timestamp(&recording.header.magic_number, &sought_packet);
+                            playback_elapsed = previous_ts.saturating_sub(first_ts);
+                            let _ = self.event_tx.send(
+                                Event::position_event(
+                                    pos ,recording.packets.len(),
+                                    playback_elapsed.clone(), total_duration.clone()));
+
+                            if self.state == PlayerState::Playing {
+                                Some(PlayerState::Playing)
+                            } else {
+                                Some(PlayerState::Paused)
+                            }
+                        } else { None }
+                    } else {
+                        // TODO when an invalid/too large to_position is provided.
+                        None
+                    }
+                }
                 Ok(Command::Quit) => { Some(PlayerState::Quit) }
                 Err(TryRecvError::Empty) => { None } // no-op
                 Err(TryRecvError::Disconnected) => {
@@ -185,7 +212,6 @@ fn duration_from_timestamp(mode: &PcapMagicNumber, packet: &PcapPacketRecord) ->
     Duration::new(seconds, fraction)
 }
 
-// TODO replace this builder with buildstructor crate?
 pub struct PlayerBuilder {
     recording: Option<Recording>,
     destination: Option<SocketAddr>,

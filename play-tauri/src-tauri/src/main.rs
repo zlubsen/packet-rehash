@@ -119,7 +119,7 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             cmd_update_settings,
-            cmd_open, cmd_play, cmd_pause, cmd_rewind])
+            cmd_open, cmd_play, cmd_pause, cmd_rewind, cmd_seek])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
@@ -249,5 +249,17 @@ fn cmd_rewind(player_state: State<PlayerWrapper>) -> Result<(), PlayError> {
         Ok(())
     } else {
         Err(PlayError::IncorrectStateForCommand(format!("{}", Command::Rewind)))
+    }
+}
+
+#[tauri::command]
+fn cmd_seek(player_state: State<PlayerWrapper>, to_position: usize) -> Result<(), PlayError> {
+    let handle = player_state.player.read().unwrap();
+    let seek_cmd = Command::Seek(to_position);
+    if let Some(handle) = &*handle {
+        let _ = &handle.cmd_sender.lock().unwrap().send(seek_cmd);
+        Ok(())
+    } else {
+        Err(PlayError::IncorrectStateForCommand(format!("{}", seek_cmd)))
     }
 }
