@@ -31,12 +31,16 @@ pub(crate) fn run_gui(options: PlayerOptions, event_receiver: Receiver<Event>, c
     }
 
     let window_options = window_options();
-    eframe::run_native(
+    let result = eframe::run_native(
         "packet-play",
         window_options,
         Box::new(|_cc| Box::new(
             GuiApp::new(options, cmd_sender, event_receiver)))
     );
+
+    if let Err(_) = result {
+        return Err(PlayerError::PlayerInitError)
+    };
 
     return Ok(())
 }

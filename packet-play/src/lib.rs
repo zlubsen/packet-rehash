@@ -20,6 +20,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use clap::Parser;
 use log::error;
 use thiserror::Error;
+use serde_derive::Serialize;
 
 use pcap_files::{Pcap, PcapNG};
 
@@ -71,7 +72,7 @@ impl PlayerOptions {
     }
 }
 
-#[derive(Clone, Debug, Error, serde::Serialize)]
+#[derive(Clone, Debug, Error, Serialize)]
 pub enum PlayerError {
     #[error("Failed to initialize the Player")]
     PlayerInitError,

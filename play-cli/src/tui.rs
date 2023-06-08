@@ -6,12 +6,12 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use tui::backend::{Backend, CrosstermBackend};
-use tui::layout::{Alignment, Constraint, Direction, Layout};
-use tui::style::{Color, Style};
-use tui::{Frame, Terminal};
-use tui::text::{Span, Spans};
-use tui::widgets::{Block, Borders, Cell, Gauge, Paragraph, Row, Table};
+use ratatui::backend::{Backend, CrosstermBackend};
+use ratatui::layout::{Alignment, Constraint, Direction, Layout};
+use ratatui::style::{Color, Style};
+use ratatui::{Frame, Terminal};
+use ratatui::text::{Span, Line};
+use ratatui::widgets::{Block, Borders, Cell, Gauge, Paragraph, Row, Table};
 use tui_logger::TuiLoggerWidget;
 
 use packet_play::{Event, Command, PlayerOptions, PlayerError, PlayerState, PositionChange};
@@ -235,8 +235,8 @@ where B: Backend {
 fn draw_header(app: &App) -> Paragraph {
     Paragraph::new(
         vec![
-            Spans::from(Span::styled("Packet Play", Style::default().fg(Color::White))),
-            Spans::from(Span::from(app.options.file.as_str()))
+            Line::from(Span::styled("Packet Play", Style::default().fg(Color::White))),
+            Line::from(Span::from(app.options.file.as_str()))
         ])
         .style(Style::default().fg(Color::White))
         .alignment(Alignment::Center)

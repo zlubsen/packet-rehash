@@ -7,6 +7,8 @@ use std::time::{Duration, Instant};
 
 use log::trace;
 
+use serde_derive::Serialize;
+
 use pcap_files::{PcapMagicNumber, PcapPacketRecord};
 use pcap_files::{ETHERNET_HEADER_LENGTH_BYTES, IP_HEADER_LENGTH_BYTES, UDP_HEADER_LENGTH_BYTES};
 
@@ -27,7 +29,7 @@ pub struct Player {
     event_tx: Sender<Event>,
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize)]
 pub enum PlayerState {
     Initial,
     Playing,

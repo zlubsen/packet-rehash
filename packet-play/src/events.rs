@@ -2,7 +2,9 @@ use std::time::Duration;
 use crate::player::PlayerState;
 use crate::PlayerError;
 
-#[derive(Clone, serde::Serialize)]
+use serde_derive::Serialize;
+
+#[derive(Clone, Serialize)]
 pub enum Event {
     Error(PlayerError),
     PlayerReady,
@@ -33,12 +35,12 @@ impl Event {
     }
 }
 
-#[derive(Copy, Clone, Debug, serde::Serialize)]
+#[derive(Copy, Clone, Debug, Serialize)]
 pub struct StateChange {
     pub state: PlayerState,
 }
 
-#[derive(Copy, Clone, Debug, serde::Serialize)]
+#[derive(Copy, Clone, Debug, Serialize)]
 pub struct PositionChange {
     pub position: usize,
     pub max_position: usize,
